@@ -169,10 +169,12 @@ async def reset_user_database(request: ResetDatabaseRequest):
         
         print(f"[RESET] New Pinecone index created: {new_index_name}")
         
-        # Update user settings with new index
+        # Update user settings with new index and reset permissions
         utils.supabase.table("user_settings").update({
             "pinecone_index": new_index_name,
-            "setup_step": 2
+            "setup_step": 2,
+            "permissions": {},
+            "uploaded_data_sources": {}
         }).eq("user_id", request.user_id).execute()
         
         return {"message": "Database reset successfully", "new_index_name": new_index_name}

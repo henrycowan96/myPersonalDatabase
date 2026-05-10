@@ -44,7 +44,7 @@ async def fetch_apple_calendar_endpoint(request: Optional[CreateUserDatabaseRequ
 
 @router.post("/ingest-apple-notes")
 async def ingest_apple_notes_endpoint(request: CreateUserDatabaseRequest):
-    """Fetch and ingest Apple Notes into the database"""
+    """Fetch and ingest Apple Notes into the database with deduplication"""
     try:
         print(f"[APPLE NOTES INGEST] Starting ingestion for user {request.user_id}")
         
@@ -59,6 +59,10 @@ async def ingest_apple_notes_endpoint(request: CreateUserDatabaseRequest):
 
         pinecone_index_name = user_settings.data[0].get("pinecone_index")
         print(f"[APPLE NOTES INGEST] Using Pinecone index: {pinecone_index_name}")
+        
+        # Create sync job
+        sync_job_id = utils.create_sync_job(request.user_id, 'apple_notes')
+        print(f"[APPLE NOTES INGEST] Created sync job: {sync_job_id}")
         
         # Fetch notes
         print(f"[APPLE NOTES INGEST] Fetching notes...")
@@ -79,11 +83,16 @@ async def ingest_apple_notes_endpoint(request: CreateUserDatabaseRequest):
         print(f"[APPLE NOTES INGEST] Connected to Pinecone index")
         
         vectors = []
+        source_ids_seen = []
+        items_created = 0
+        items_skipped = 0
+        
         for note in notes_data:
             name = note.get('name', 'Untitled')
             body = note.get('body', '')
             created = note.get('created', '')
             modified = note.get('modified', '')
+            note_id = note.get('id', str(uuid.uuid4()))
             
             # Truncate body if too long
             if len(body) > 3000:
@@ -96,9 +105,21 @@ async def ingest_apple_notes_endpoint(request: CreateUserDatabaseRequest):
                 text += f"Modified: {modified}\n"
             text += f"\n{body}"
             
+            # Generate content hash for deduplication
+            content_hash = utils.generate_content_hash(text)
+            
+            # Check if this chunk already exists
+            existing_chunk = utils.check_chunk_exists(request.user_id, 'apple_notes', content_hash)
+            if existing_chunk:
+                utils.update_chunk_last_seen(existing_chunk['id'], sync_job_id)
+                items_skipped += 1
+                source_ids_seen.append(note_id)
+                continue
+            
             embedding = utils.embedding_model.encode(text).tolist()
+            vector_id = str(uuid.uuid4())
             vectors.append({
-                'id': str(uuid.uuid4()),
+                'id': vector_id,
                 'values': embedding,
                 'metadata': {
                     'text': text,
@@ -106,40 +127,81 @@ async def ingest_apple_notes_endpoint(request: CreateUserDatabaseRequest):
                     'type': 'note',
                     'note_name': name,
                     'created_date': created[:50] if created else '',
-                    'modified_date': modified[:50] if modified else ''
+                    'modified_date': modified[:50] if modified else '',
+                    'note_id': note_id,
+                    'content_hash': content_hash
                 }
             })
+            source_ids_seen.append(note_id)
+            items_created += 1
         
-        print(f"[APPLE NOTES INGEST] Created {len(vectors)} vectors")
+        print(f"[APPLE NOTES INGEST] Created {len(vectors)} vectors (skipped {items_skipped} duplicates)")
         
-        # Upsert in batches
+        # Upsert in batches and record chunks
         batch_size = 100
+        success_count = 0
         for i in range(0, len(vectors), batch_size):
             batch = vectors[i:i+batch_size]
             print(f"[APPLE NOTES INGEST] Upserting batch {i//batch_size + 1}/{(len(vectors) + batch_size - 1)//batch_size}")
             try:
                 index_to_use.upsert(vectors=batch)
+                
+                # Record each chunk in tracking table
+                for vector in batch:
+                    utils.record_ingested_chunk(
+                        user_id=request.user_id,
+                        source_type='apple_notes',
+                        source_id=vector['metadata'].get('note_id'),
+                        chunk_hash=vector['metadata'].get('content_hash'),
+                        pinecone_vector_id=vector['id'],
+                        content_preview=vector['metadata'].get('text')[:200],
+                        metadata=vector['metadata'],
+                        sync_job_id=sync_job_id
+                    )
+                
+                success_count += len(batch)
             except Exception as e:
                 print(f"[APPLE NOTES INGEST] Error upserting batch: {e}")
                 continue
         
-        print(f"[APPLE NOTES INGEST] Successfully ingested {len(notes_data)} notes")
+        # Mark stale data as deleted
+        items_deleted = utils.mark_stale_data(request.user_id, 'apple_notes', source_ids_seen, sync_job_id)
+        print(f"[APPLE NOTES INGEST] Marked {items_deleted} items as deleted")
+        
+        # Update sync job with final metrics
+        utils.update_sync_job(
+            sync_job_id,
+            status='completed',
+            items_processed=len(notes_data),
+            items_created=items_created,
+            items_updated=0,
+            items_skipped=items_skipped,
+            items_deleted=items_deleted,
+            source_ids_seen=source_ids_seen
+        )
+        
+        print(f"[APPLE NOTES INGEST] Successfully ingested {success_count} notes")
         
         return {
-            "message": f"Successfully ingested {len(notes_data)} Apple Notes",
-            "count": len(notes_data)
+            "message": f"Successfully ingested {success_count} Apple Notes",
+            "count": success_count,
+            "skipped": items_skipped,
+            "deleted": items_deleted,
+            "sync_job_id": sync_job_id
         }
     
     except Exception as e:
         print(f"[APPLE NOTES INGEST] ERROR: {e}")
         import traceback
         traceback.print_exc()
+        if sync_job_id:
+            utils.update_sync_job(sync_job_id, status='failed', error_message=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/ingest-apple-calendar")
 async def ingest_apple_calendar_endpoint(request: CreateUserDatabaseRequest):
-    """Fetch and ingest Apple Calendar events into the database"""
+    """Fetch and ingest Apple Calendar events into the database with deduplication"""
     try:
         print(f"[APPLE CALENDAR INGEST] Starting ingestion for user {request.user_id}")
         
@@ -154,6 +216,10 @@ async def ingest_apple_calendar_endpoint(request: CreateUserDatabaseRequest):
 
         pinecone_index_name = user_settings.data[0].get("pinecone_index")
         print(f"[APPLE CALENDAR INGEST] Using Pinecone index: {pinecone_index_name}")
+        
+        # Create sync job
+        sync_job_id = utils.create_sync_job(request.user_id, 'apple_calendar')
+        print(f"[APPLE CALENDAR INGEST] Created sync job: {sync_job_id}")
         
         # Fetch calendar events with CalDAV credentials if provided
         print(f"[APPLE CALENDAR INGEST] Fetching calendar events...")
@@ -184,6 +250,10 @@ async def ingest_apple_calendar_endpoint(request: CreateUserDatabaseRequest):
         print(f"[APPLE CALENDAR INGEST] Connected to Pinecone index")
         
         vectors = []
+        source_ids_seen = []
+        items_created = 0
+        items_skipped = 0
+        
         for event in events_data:
             # Truncate notes if too long
             notes = event.get('notes', '')
@@ -194,6 +264,8 @@ async def ingest_apple_calendar_endpoint(request: CreateUserDatabaseRequest):
             summary = event.get('summary', 'No Title')
             if len(summary) > 100:
                 summary = summary[:100] + "..."
+            
+            event_id = event.get('id', str(uuid.uuid4()))
             
             text = f"Calendar Event: {summary}\n"
             text += f"Calendar: {event['calendar']}\n"
@@ -206,9 +278,21 @@ async def ingest_apple_calendar_endpoint(request: CreateUserDatabaseRequest):
             if notes:
                 text += f"\nNotes:\n{notes}\n"
             
+            # Generate content hash for deduplication
+            content_hash = utils.generate_content_hash(text)
+            
+            # Check if this chunk already exists
+            existing_chunk = utils.check_chunk_exists(request.user_id, 'apple_calendar', content_hash)
+            if existing_chunk:
+                utils.update_chunk_last_seen(existing_chunk['id'], sync_job_id)
+                items_skipped += 1
+                source_ids_seen.append(event_id)
+                continue
+            
             embedding = utils.embedding_model.encode(text).tolist()
+            vector_id = str(uuid.uuid4())
             vectors.append({
-                'id': str(uuid.uuid4()),
+                'id': vector_id,
                 'values': embedding,
                 'metadata': {
                     'text': text,
@@ -217,38 +301,78 @@ async def ingest_apple_calendar_endpoint(request: CreateUserDatabaseRequest):
                     'calendar': event['calendar'],
                     'event_title': summary,
                     'start_date': event['start_date'][:50] if event.get('start_date') else '',
-                    'end_date': event['end_date'][:50] if event.get('end_date') else ''
+                    'end_date': event['end_date'][:50] if event.get('end_date') else '',
+                    'event_id': event_id,
+                    'content_hash': content_hash
                 }
             })
+            source_ids_seen.append(event_id)
+            items_created += 1
         
-        print(f"[APPLE CALENDAR INGEST] Created {len(vectors)} vectors")
+        print(f"[APPLE CALENDAR INGEST] Created {len(vectors)} vectors (skipped {items_skipped} duplicates)")
         
-        # Upsert one at a time to avoid batch size issues
+        # Upsert vectors and record chunks
+        success_count = 0
         for i, vector in enumerate(vectors):
             print(f"[APPLE CALENDAR INGEST] Upserting vector {i+1}/{len(vectors)}")
             try:
                 index_to_use.upsert(vectors=[vector])
+                
+                # Record the ingested chunk
+                utils.record_ingested_chunk(
+                    user_id=request.user_id,
+                    source_type='apple_calendar',
+                    source_id=vector['metadata'].get('event_id'),
+                    chunk_hash=vector['metadata'].get('content_hash'),
+                    pinecone_vector_id=vector['id'],
+                    content_preview=vector['metadata'].get('text')[:200],
+                    metadata=vector['metadata'],
+                    sync_job_id=sync_job_id
+                )
+                
+                success_count += 1
             except Exception as e:
                 print(f"[APPLE CALENDAR INGEST] Error upserting vector {i+1}: {e}")
                 continue
         
-        print(f"[APPLE CALENDAR INGEST] Successfully ingested {len(events_data)} events")
+        # Mark stale data as deleted
+        items_deleted = utils.mark_stale_data(request.user_id, 'apple_calendar', source_ids_seen, sync_job_id)
+        print(f"[APPLE CALENDAR INGEST] Marked {items_deleted} items as deleted")
+        
+        # Update sync job with final metrics
+        utils.update_sync_job(
+            sync_job_id,
+            status='completed',
+            items_processed=len(events_data),
+            items_created=items_created,
+            items_updated=0,
+            items_skipped=items_skipped,
+            items_deleted=items_deleted,
+            source_ids_seen=source_ids_seen
+        )
+        
+        print(f"[APPLE CALENDAR INGEST] Successfully ingested {success_count} events")
         
         return {
-            "message": f"Successfully ingested {len(events_data)} Apple Calendar events",
-            "count": len(events_data)
+            "message": f"Successfully ingested {success_count} Apple Calendar events",
+            "count": success_count,
+            "skipped": items_skipped,
+            "deleted": items_deleted,
+            "sync_job_id": sync_job_id
         }
     
     except Exception as e:
         print(f"[APPLE CALENDAR INGEST] ERROR: {e}")
         import traceback
         traceback.print_exc()
+        if sync_job_id:
+            utils.update_sync_job(sync_job_id, status='failed', error_message=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/ingest-apple-music")
 async def ingest_apple_music_endpoint(request: AppleMusicRequest):
-    """Fetch and ingest Apple Music data into the database using Music User Token"""
+    """Fetch and ingest Apple Music data into the database with deduplication"""
     try:
         print(f"[APPLE MUSIC INGEST] Starting ingestion for user {request.user_id}")
 
@@ -263,6 +387,10 @@ async def ingest_apple_music_endpoint(request: AppleMusicRequest):
 
         pinecone_index_name = user_settings.data[0].get("pinecone_index")
         print(f"[APPLE MUSIC INGEST] Using Pinecone index: {pinecone_index_name}")
+
+        # Create sync job
+        sync_job_id = utils.create_sync_job(request.user_id, 'apple_music')
+        print(f"[APPLE MUSIC INGEST] Created sync job: {sync_job_id}")
 
         # Use Music User Token from request (from Apple ID authentication)
         music_user_token = request.music_user_token
@@ -331,81 +459,170 @@ async def ingest_apple_music_endpoint(request: AppleMusicRequest):
         print(f"[APPLE MUSIC INGEST] Connected to Pinecone index")
 
         vectors = []
-        total_items = 0
+        source_ids_seen = []
+        items_created = 0
+        items_skipped = 0
 
         # Process songs
         songs = music_data.get('results', {}).get('songs', {}).get('data', [])
         for song in songs:
             text = format_song(song)
+            song_id = song.get('id', str(uuid.uuid4()))
+            
+            # Generate content hash for deduplication
+            content_hash = utils.generate_content_hash(text)
+            
+            # Check if this chunk already exists
+            existing_chunk = utils.check_chunk_exists(request.user_id, 'apple_music', content_hash)
+            if existing_chunk:
+                utils.update_chunk_last_seen(existing_chunk['id'], sync_job_id)
+                items_skipped += 1
+                source_ids_seen.append(song_id)
+                continue
+            
             embedding = utils.embedding_model.encode(text).tolist()
+            vector_id = str(uuid.uuid4())
             vectors.append({
-                'id': str(uuid.uuid4()),
+                'id': vector_id,
                 'values': embedding,
                 'metadata': {
                     'text': text,
                     'source': 'apple_music',
                     'type': 'song',
-                    'data_type': 'song'
+                    'song_id': song_id,
+                    'content_hash': content_hash
                 }
             })
-            total_items += 1
+            source_ids_seen.append(song_id)
+            items_created += 1
 
         # Process albums
         albums = music_data.get('results', {}).get('albums', {}).get('data', [])
         for album in albums:
             text = format_album(album)
+            album_id = album.get('id', str(uuid.uuid4()))
+            
+            # Generate content hash for deduplication
+            content_hash = utils.generate_content_hash(text)
+            
+            # Check if this chunk already exists
+            existing_chunk = utils.check_chunk_exists(request.user_id, 'apple_music', content_hash)
+            if existing_chunk:
+                utils.update_chunk_last_seen(existing_chunk['id'], sync_job_id)
+                items_skipped += 1
+                source_ids_seen.append(album_id)
+                continue
+            
             embedding = utils.embedding_model.encode(text).tolist()
+            vector_id = str(uuid.uuid4())
             vectors.append({
-                'id': str(uuid.uuid4()),
+                'id': vector_id,
                 'values': embedding,
                 'metadata': {
                     'text': text,
                     'source': 'apple_music',
                     'type': 'album',
-                    'data_type': 'album'
+                    'album_id': album_id,
+                    'content_hash': content_hash
                 }
             })
-            total_items += 1
+            source_ids_seen.append(album_id)
+            items_created += 1
 
         # Process artists
         artists = music_data.get('results', {}).get('artists', {}).get('data', [])
         for artist in artists:
             text = format_artist(artist)
+            artist_id = artist.get('id', str(uuid.uuid4()))
+            
+            # Generate content hash for deduplication
+            content_hash = utils.generate_content_hash(text)
+            
+            # Check if this chunk already exists
+            existing_chunk = utils.check_chunk_exists(request.user_id, 'apple_music', content_hash)
+            if existing_chunk:
+                utils.update_chunk_last_seen(existing_chunk['id'], sync_job_id)
+                items_skipped += 1
+                source_ids_seen.append(artist_id)
+                continue
+            
             embedding = utils.embedding_model.encode(text).tolist()
+            vector_id = str(uuid.uuid4())
             vectors.append({
-                'id': str(uuid.uuid4()),
+                'id': vector_id,
                 'values': embedding,
                 'metadata': {
                     'text': text,
                     'source': 'apple_music',
                     'type': 'artist',
-                    'data_type': 'artist'
+                    'artist_id': artist_id,
+                    'content_hash': content_hash
                 }
             })
-            total_items += 1
+            source_ids_seen.append(artist_id)
+            items_created += 1
 
-        print(f"[APPLE MUSIC INGEST] Created {len(vectors)} vectors from {total_items} music items")
+        total_items = len(songs) + len(albums) + len(artists)
+        print(f"[APPLE MUSIC INGEST] Created {len(vectors)} vectors from {total_items} music items (skipped {items_skipped} duplicates)")
 
-        # Upsert in batches
+        # Upsert in batches and record chunks
         batch_size = 100
+        success_count = 0
         for i in range(0, len(vectors), batch_size):
             batch = vectors[i:i+batch_size]
             print(f"[APPLE MUSIC INGEST] Upserting batch {i//batch_size + 1}/{(len(vectors) + batch_size - 1)//batch_size}")
             try:
                 index_to_use.upsert(vectors=batch)
+                
+                # Record each chunk in tracking table
+                for vector in batch:
+                    source_id = vector['metadata'].get('song_id') or vector['metadata'].get('album_id') or vector['metadata'].get('artist_id')
+                    utils.record_ingested_chunk(
+                        user_id=request.user_id,
+                        source_type='apple_music',
+                        source_id=source_id,
+                        chunk_hash=vector['metadata'].get('content_hash'),
+                        pinecone_vector_id=vector['id'],
+                        content_preview=vector['metadata'].get('text')[:200],
+                        metadata=vector['metadata'],
+                        sync_job_id=sync_job_id
+                    )
+                
+                success_count += len(batch)
             except Exception as e:
                 print(f"[APPLE MUSIC INGEST] Error upserting batch: {e}")
                 continue
 
-        print(f"[APPLE MUSIC INGEST] Successfully ingested {total_items} Apple Music items")
+        # Mark stale data as deleted
+        items_deleted = utils.mark_stale_data(request.user_id, 'apple_music', source_ids_seen, sync_job_id)
+        print(f"[APPLE MUSIC INGEST] Marked {items_deleted} items as deleted")
+
+        # Update sync job with final metrics
+        utils.update_sync_job(
+            sync_job_id,
+            status='completed',
+            items_processed=total_items,
+            items_created=items_created,
+            items_updated=0,
+            items_skipped=items_skipped,
+            items_deleted=items_deleted,
+            source_ids_seen=source_ids_seen
+        )
+
+        print(f"[APPLE MUSIC INGEST] Successfully ingested {success_count} Apple Music items")
 
         return {
-            "message": f"Successfully ingested {total_items} Apple Music items (songs, albums, artists)",
-            "count": total_items
+            "message": f"Successfully ingested {success_count} Apple Music items (songs, albums, artists)",
+            "count": success_count,
+            "skipped": items_skipped,
+            "deleted": items_deleted,
+            "sync_job_id": sync_job_id
         }
 
     except Exception as e:
         print(f"[APPLE MUSIC INGEST] ERROR: {e}")
         import traceback
         traceback.print_exc()
+        if sync_job_id:
+            utils.update_sync_job(sync_job_id, status='failed', error_message=str(e))
         raise HTTPException(status_code=500, detail=str(e))

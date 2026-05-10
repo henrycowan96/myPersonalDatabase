@@ -104,6 +104,39 @@ async def query_documents(request: QueryRequest):
                     break
             context = "\n\n".join(truncated_context)
 
+        # Process conversation history with summarization
+        conversation_context = ""
+        if request.conversation_history:
+            summary_result = utils.summarize_conversation(request.conversation_history)
+            
+            if summary_result["summary"]:
+                conversation_context = f"\n\nCONVERSATION SUMMARY (earlier context):\n{summary_result['summary']}\n"
+            
+            if summary_result["recent_turns"]:
+                recent_conversation = "\n".join([
+                    f"User: {turn.get('query', '')}\nAssistant: {turn.get('answer', '')}"
+                    for turn in summary_result["recent_turns"]
+                ])
+                conversation_context += f"\nRECENT CONVERSATION:\n{recent_conversation}\n"
+
+        # Build persona snapshot from structured facts
+        persona_block = ""
+        if request.user_id and utils.supabase:
+            try:
+                facts_res = utils.supabase.table("facts").select("entity_key,value,last_confirmed_at").eq("user_id", request.user_id).eq("is_current", True).order("entity_category").order("entity_key").execute()
+                if facts_res.data:
+                    lines = []
+                    for f in facts_res.data:
+                        ts_str = f.get("last_confirmed_at", "")
+                        if isinstance(ts_str, str) and len(ts_str) >= 7:
+                            ts_display = ts_str[:7]
+                        else:
+                            ts_display = "unknown"
+                        lines.append(f"- {f['entity_key']}: {f['value']} (as of {ts_display})")
+                    persona_block = "Current known facts about this person:\n" + "\n".join(lines) + "\n\n"
+            except Exception as e:
+                print(f"[QUERY] Error fetching persona snapshot: {e}")
+
         # Generate answer using LLM with improved prompt
         if utils.llm and context_parts:
             prompt = f"""You are a precise, factual assistant that answers questions based ONLY on the provided context.
@@ -121,8 +154,10 @@ INSTRUCTIONS:
 - Be specific and cite relevant details
 - Do not make up or infer information beyond what's provided
 - Keep answers concise and well-structured
+- Use conversation history to understand context, but base factual answers on the provided document context
+{conversation_context}
 
-CONTEXT (from {len(context_parts)} sources):
+{persona_block}CONTEXT (from {len(context_parts)} sources):
 {context}
 
 QUESTION: {request.question}
@@ -226,6 +261,39 @@ async def query_by_relationships(request: RelationshipQueryRequest):
                 })
                 context_parts.append(content)
         
+        # Process conversation history with summarization
+        conversation_context = ""
+        if request.conversation_history:
+            summary_result = utils.summarize_conversation(request.conversation_history)
+            
+            if summary_result["summary"]:
+                conversation_context = f"\n\nCONVERSATION SUMMARY (earlier context):\n{summary_result['summary']}\n"
+            
+            if summary_result["recent_turns"]:
+                recent_conversation = "\n".join([
+                    f"User: {turn.get('query', '')}\nAssistant: {turn.get('answer', '')}"
+                    for turn in summary_result["recent_turns"]
+                ])
+                conversation_context += f"\nRECENT CONVERSATION:\n{recent_conversation}\n"
+
+        # Build persona snapshot from structured facts
+        persona_block = ""
+        if request.user_id and utils.supabase:
+            try:
+                facts_res = utils.supabase.table("facts").select("entity_key,value,last_confirmed_at").eq("user_id", request.user_id).eq("is_current", True).order("entity_category").order("entity_key").execute()
+                if facts_res.data:
+                    lines = []
+                    for f in facts_res.data:
+                        ts_str = f.get("last_confirmed_at", "")
+                        if isinstance(ts_str, str) and len(ts_str) >= 7:
+                            ts_display = ts_str[:7]
+                        else:
+                            ts_display = "unknown"
+                        lines.append(f"- {f['entity_key']}: {f['value']} (as of {ts_display})")
+                    persona_block = "Current known facts about this person:\n" + "\n".join(lines) + "\n\n"
+            except Exception as e:
+                print(f"[QUERY-REL] Error fetching persona snapshot: {e}")
+
         # Generate answer using LLM if question provided
         if request.question and utils.llm and context_parts:
             context = "\n\n".join(context_parts)
@@ -238,8 +306,9 @@ IMPORTANT: All information in the context below is from the user's personal pers
 - Any references to "I", "my", or personal activities refer to the user
 
 Use the following pieces of context to answer the question at the end. If you don't know the answer based on the context, just say that you don't know, don't try to make up an answer.
+{conversation_context}
 
-Context: {context}
+{persona_block}Context: {context}
 
 Question: {request.question}
 

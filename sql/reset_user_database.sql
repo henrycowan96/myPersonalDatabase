@@ -11,6 +11,16 @@ RETURNS TEXT AS $$
 DECLARE
     result TEXT;
 BEGIN
+    -- Delete all fact-related data for the user
+    DELETE FROM fact_changes
+    WHERE user_id = target_user_id;
+
+    DELETE FROM candidate_facts
+    WHERE user_id = target_user_id;
+
+    DELETE FROM facts
+    WHERE user_id = target_user_id;
+
     -- Delete all chat history for the user
     DELETE FROM chat_history 
     WHERE user_id = target_user_id;

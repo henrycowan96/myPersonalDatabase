@@ -89,7 +89,7 @@ def main():
     # Initialize OpenRouter LLM
     try:
         llm = ChatOpenAI(
-            model="openrouter/free",
+            model="openai/gpt-oss-20b:free",
             temperature=0.7,
             openai_api_key=os.getenv("OPEN_ROUTER_API_KEY"),
             openai_api_base="https://openrouter.ai/api/v1"

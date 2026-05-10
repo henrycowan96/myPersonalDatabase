@@ -1,198 +1,125 @@
 """
-Entity extraction module for identifying people, companies, projects, and topics
-from text documents to enable relationship tracking.
+Entity extraction utilities for document processing.
 """
 
 import re
-from typing import List, Dict, Set
-from collections import Counter
+from typing import List, Dict, Any
+from datetime import datetime
 
 
-class EntityExtractor:
-    """Extract entities from text for relationship tracking"""
-    
-    def __init__(self):
-        # Common company name patterns (can be extended)
-        self.company_patterns = [
-            r'\b[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*(?:\s+(?:Inc|Corp|LLC|Ltd|Co|Company|Technologies|Systems|Solutions))\b',
-            r'\b(?:Apple|Google|Microsoft|Amazon|Meta|NVIDIA|AMD|Intel|Tesla|SpaceX|OpenAI|Anthropic|Palantir|CoreWeave|Adyen)\b'
-        ]
-        
-        # Person name patterns (capitalized words, 2-3 words)
-        self.person_patterns = [
-            r'\b[A-Z][a-z]+\s+[A-Z][a-z]+\b',  # First Last
-            r'\b[A-Z][a-z]+\s+[A-Z]\.\s+[A-Z][a-z]+\b',  # First M. Last
-        ]
-        
-        # Topic/keyword patterns for categorization
-        self.topic_keywords = {
-            'investment': ['investment', 'stock', 'etf', 'portfolio', 'bullish', 'bearish', 'dividend', 'trading'],
-            'ai_ml': ['ai', 'artificial intelligence', 'machine learning', 'neural network', 'llm', 'gpt', 'transformer'],
-            'crypto': ['bitcoin', 'ethereum', 'cryptocurrency', 'blockchain', 'nft', 'defi'],
-            'career': ['resume', 'interview', 'job', 'career', 'internship', 'offer', 'salary'],
-            'education': ['school', 'university', 'college', 'class', 'exam', 'homework', 'assignment', 'degree'],
-            'finance': ['finance', 'financial', 'revenue', 'earnings', 'profit', 'debt', 'loan'],
-            'technology': ['software', 'hardware', 'chip', 'gpu', 'cpu', 'data center', 'cloud'],
-            'energy': ['energy', 'oil', 'gas', 'nuclear', 'renewable', 'solar', 'wind', 'uranium'],
-            'healthcare': ['medical', 'health', 'cancer', 'treatment', 'therapy', 'fda', 'drug'],
-            'music': ['song', 'album', 'artist', 'band', 'music', 'playlist', 'track', 'genre', 'concert', 'vinyl', 'spotify', 'apple music'],
-        }
-        
-        # Project/task patterns
-        self.project_patterns = [
-            r'\b(?:Project|Task)\s+[A-Z][a-zA-Z]+\b',
-            r'\b[A-Z][a-zA-Z]+\s+(?:Project|Initiative|Program)\b',
-        ]
-    
-    def extract_companies(self, text: str) -> List[str]:
-        """Extract company names from text"""
-        companies = set()
-        for pattern in self.company_patterns:
-            matches = re.findall(pattern, text, re.IGNORECASE)
-            companies.update([m.strip() for m in matches])
-        return sorted(list(companies))
-    
-    def extract_people(self, text: str) -> List[str]:
-        """Extract person names from text"""
-        people = set()
-        for pattern in self.person_patterns:
-            matches = re.findall(pattern, text)
-            # Filter out common false positives
-            for match in matches:
-                words = match.split()
-                if len(words) >= 2 and all(word[0].isupper() for word in words):
-                    people.add(match)
-        return sorted(list(people))
-    
-    def extract_topics(self, text: str) -> List[str]:
-        """Extract topics based on keyword matching"""
-        text_lower = text.lower()
-        found_topics = set()
-        
-        for topic, keywords in self.topic_keywords.items():
-            if any(keyword in text_lower for keyword in keywords):
-                found_topics.add(topic)
-        
-        return sorted(list(found_topics))
-    
-    def extract_projects(self, text: str) -> List[str]:
-        """Extract project/task references"""
-        projects = set()
-        for pattern in self.project_patterns:
-            matches = re.findall(pattern, text, re.IGNORECASE)
-            projects.update([m.strip() for m in matches])
-        return sorted(list(projects))
-    
-    def extract_emails(self, text: str) -> List[str]:
-        """Extract email addresses"""
-        email_pattern = r'[\w\.-]+@[\w\.-]+\.\w+'
-        emails = re.findall(email_pattern, text)
-        return sorted(list(set(emails)))
-    
-    def extract_dates(self, text: str) -> List[str]:
-        """Extract date references (ISO format or common formats)"""
-        date_patterns = [
-            r'\b\d{4}-\d{2}-\d{2}\b',  # ISO format
-            r'\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b',  # Month Day, Year
-            r'\b\d{1,2}/\d{1,2}/\d{4}\b',  # MM/DD/YYYY
-        ]
-        dates = set()
-        for pattern in date_patterns:
-            matches = re.findall(pattern, text, re.IGNORECASE)
-            dates.update(matches)
-        return sorted(list(dates))
-    
-    def extract_all(self, text: str) -> Dict[str, List[str]]:
-        """Extract all entities from text"""
-        return {
-            'companies': self.extract_companies(text),
-            'people': self.extract_people(text),
-            'topics': self.extract_topics(text),
-            'projects': self.extract_projects(text),
-            'emails': self.extract_emails(text),
-            'dates': self.extract_dates(text)
-        }
-    
-    def generate_entity_ids(self, entities: Dict[str, List[str]]) -> List[str]:
-        """Generate standardized entity IDs from extracted entities"""
-        entity_ids = []
-        
-        # Prefix entities by type for uniqueness
-        for company in entities.get('companies', []):
-            entity_ids.append(f"company_{company.lower().replace(' ', '_')}")
-        
-        for person in entities.get('people', []):
-            entity_ids.append(f"person_{person.lower().replace(' ', '_')}")
-        
-        for project in entities.get('projects', []):
-            entity_ids.append(f"project_{project.lower().replace(' ', '_')}")
-        
-        for email in entities.get('emails', []):
-            entity_ids.append(f"email_{email.lower()}")
-        
-        return entity_ids
-    
-    def infer_time_context(self, text: str, metadata: Dict = None) -> Dict:
-        """Infer time context from text and existing metadata"""
-        time_context = {}
-        
-        # Extract dates from text
-        dates = self.extract_dates(text)
-        if dates:
-            time_context['mentioned_dates'] = dates
-        
-        # Use existing created_date if available
-        if metadata and metadata.get('created_date'):
-            time_context['document_date'] = metadata['created_date']
-        
-        return time_context if time_context else None
-
-
-def extract_entities_for_document(text: str, metadata: Dict = None) -> Dict:
+def extract_entities_for_document(text: str, document_type: str = "general") -> Dict[str, Any]:
     """
-    Convenience function to extract all entities and generate enhanced metadata fields.
+    Extract entities from a document text.
     
     Args:
-        text: Document text content
-        metadata: Existing metadata dict (optional)
+        text: The document text to analyze
+        document_type: Type of document (email, calendar, note, etc.)
     
     Returns:
-        Dict with entity_ids, topics, and time_context for enhanced metadata
+        Dictionary containing extracted entities
     """
-    extractor = EntityExtractor()
-    entities = extractor.extract_all(text)
-    
-    result = {
-        'entity_ids': extractor.generate_entity_ids(entities),
-        'topics': entities['topics'],
-        'time_context': extractor.infer_time_context(text, metadata)
+    entities = {
+        "people": [],
+        "organizations": [],
+        "locations": [],
+        "dates": [],
+        "emails": [],
+        "phone_numbers": [],
+        "urls": [],
+        "keywords": []
     }
     
-    # Remove None values
-    return {k: v for k, v in result.items() if v}
+    # Extract email addresses
+    email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+    entities["emails"] = re.findall(email_pattern, text)
+    
+    # Extract phone numbers (basic pattern)
+    phone_pattern = r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b'
+    entities["phone_numbers"] = re.findall(phone_pattern, text)
+    
+    # Extract URLs
+    url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+    entities["urls"] = re.findall(url_pattern, text)
+    
+    # Extract dates (basic patterns)
+    date_patterns = [
+        r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b',  # MM/DD/YYYY
+        r'\b\d{4}[/-]\d{1,2}[/-]\d{1,2}\b',    # YYYY/MM/DD
+        r'\b\w+ \d{1,2}, \d{4}\b',             # January 1, 2024
+    ]
+    
+    for pattern in date_patterns:
+        entities["dates"].extend(re.findall(pattern, text))
+    
+    # Document-specific extraction
+    if document_type == "email":
+        entities.update(_extract_email_entities(text))
+    elif document_type == "calendar":
+        entities.update(_extract_calendar_entities(text))
+    elif document_type == "note":
+        entities.update(_extract_note_entities(text))
+    
+    # Extract common proper nouns (simplified)
+    words = text.split()
+    for word in words:
+        if word.istitle() and len(word) > 3 and word not in entities["keywords"]:
+            entities["keywords"].append(word)
+    
+    return entities
 
 
-if __name__ == "__main__":
-    # Test the extractor
-    test_text = """
-    Henry and Matt discussed investment opportunities in NVIDIA and AMD.
-    The meeting was on 2024-03-15. They considered CoreWeave as a potential investment
-    but were concerned about the company's debt. Henry is also working on the AI Research Project.
-    Contact henry@example.com for more information.
-    """
+def _extract_email_entities(text: str) -> Dict[str, Any]:
+    """Extract email-specific entities"""
+    entities = {
+        "subject": "",
+        "sender": "",
+        "recipients": []
+    }
     
-    extractor = EntityExtractor()
-    entities = extractor.extract_all(test_text)
+    lines = text.split('\n')
+    for line in lines:
+        if line.lower().startswith('subject:'):
+            entities["subject"] = line.replace('Subject:', '').strip()
+        elif line.lower().startswith('from:'):
+            entities["sender"] = line.replace('From:', '').strip()
+        elif line.lower().startswith('to:'):
+            entities["recipients"].append(line.replace('To:', '').strip())
     
-    print("Extracted Entities:")
-    for entity_type, items in entities.items():
-        print(f"  {entity_type}: {items}")
+    return entities
+
+
+def _extract_calendar_entities(text: str) -> Dict[str, Any]:
+    """Extract calendar-specific entities"""
+    entities = {
+        "event_title": "",
+        "location": "",
+        "attendees": []
+    }
     
-    print("\nEntity IDs:")
-    entity_ids = extractor.generate_entity_ids(entities)
-    print(f"  {entity_ids}")
+    lines = text.split('\n')
+    for line in lines:
+        if 'Event:' in line:
+            entities["event_title"] = line.replace('Event:', '').strip()
+        elif 'Location:' in line:
+            entities["location"] = line.replace('Location:', '').strip()
+        elif 'Attendee:' in line:
+            entities["attendees"].append(line.replace('Attendee:', '').strip())
     
-    print("\nEnhanced metadata fields:")
-    enhanced = extract_entities_for_document(test_text)
-    for key, value in enhanced.items():
-        print(f"  {key}: {value}")
+    return entities
+
+
+def _extract_note_entities(text: str) -> Dict[str, Any]:
+    """Extract note-specific entities"""
+    entities = {
+        "title": "",
+        "tags": []
+    }
+    
+    lines = text.split('\n')
+    for line in lines:
+        if line.startswith('#') or line.startswith('Note:'):
+            entities["title"] = line.replace('#', '').replace('Note:', '').strip()
+        elif line.startswith('#'):
+            entities["tags"].append(line.replace('#', '').strip())
+    
+    return entities

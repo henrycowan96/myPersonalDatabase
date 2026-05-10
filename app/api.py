@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from routes import query, chat, user, auth, ingestion, upload, apple_ingestion, google_ingestion, spotify_ingestion
+from routes import query, chat, user, auth, ingestion, upload, apple_ingestion, google_ingestion, spotify_ingestion, insights, llm_thoughts, chat_context, cleanup, timeline
 import utils
 
 # Create FastAPI app with lifespan
@@ -40,6 +40,11 @@ app.include_router(apple_ingestion.router)
 app.include_router(google_ingestion.router)
 app.include_router(spotify_ingestion.router)
 app.include_router(upload.router)
+app.include_router(insights.router)
+app.include_router(llm_thoughts.router)
+app.include_router(chat_context.router)
+app.include_router(cleanup.router)
+app.include_router(timeline.router)
 
 @app.get("/")
 async def root():

@@ -5,6 +5,8 @@ from pydantic import BaseModel
 class QueryRequest(BaseModel):
     question: str
     user_id: Optional[str] = None
+    session_id: Optional[str] = None
+    conversation_history: Optional[List[dict]] = None
 
 
 class QueryResponse(BaseModel):
@@ -35,6 +37,7 @@ class ChatMessage(BaseModel):
     role: str
     content: str
     sources: Optional[List[dict]] = None
+    is_summary: Optional[bool] = False
 
 
 class SaveChatRequest(BaseModel):
@@ -80,4 +83,45 @@ class SpotifyRequest(BaseModel):
 
 
 class ResetDatabaseRequest(BaseModel):
+    user_id: str
+
+
+class InsightItem(BaseModel):
+    id: str
+    category: str
+    title: str
+    description: str
+    significance_score: float
+    sources: List[dict]
+    detected_at: str
+    time_context: dict
+    entities: List[str]
+    actionable: bool
+
+
+class ThoughtItem(BaseModel):
+    id: str
+    thought_type: str
+    title: str
+    content: str
+    prompt_used: str
+    generated_at: str
+
+
+class SaveInsightsRequest(BaseModel):
+    user_id: str
+    insights: List[InsightItem]
+
+
+class SaveThoughtsRequest(BaseModel):
+    user_id: str
+    thoughts: List[ThoughtItem]
+
+
+class GetInsightsRequest(BaseModel):
+    user_id: str
+    limit: Optional[int] = 20
+
+
+class GetThoughtsRequest(BaseModel):
     user_id: str

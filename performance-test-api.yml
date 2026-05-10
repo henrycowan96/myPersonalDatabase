@@ -1,0 +1,77 @@
+config:
+  target: 'http://localhost:8000'
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm up"
+    - duration: 120
+      arrivalRate: 10
+      name: "Load test"
+    - duration: 60
+      arrivalRate: 20
+      name: "Stress test"
+    - duration: 60
+      arrivalRate: 5
+      name: "Cool down"
+
+scenarios:
+  - name: "API Health Check"
+    weight: 10
+    flow:
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: 200
+
+  - name: "Authentication Flow"
+    weight: 20
+    flow:
+      - post:
+          url: "/auth/login"
+          json:
+            email: "test@example.com"
+            password: "testpassword"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+          expect:
+            - statusCode: 200
+
+  - name: "Search Query"
+    weight: 40
+    flow:
+      - post:
+          url: "/search"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            query: "team meeting"
+            limit: 10
+          expect:
+            - statusCode: 200
+            - contentType: application/json
+
+  - name: "Data Ingestion"
+    weight: 15
+    flow:
+      - post:
+          url: "/ingestion/google/calendar"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            events:
+              - summary: "Test Meeting"
+                start: { dateTime: "2024-01-15T10:00:00Z" }
+                end: { dateTime: "2024-01-15T11:00:00Z" }
+          expect:
+            - statusCode: 200
+
+  - name: "User Profile"
+    weight: 15
+    flow:
+      - get:
+          url: "/user/profile"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200

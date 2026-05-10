@@ -16,8 +16,152 @@ from services.google_services import fetch_calendar_data, fetch_gmail_data, fetc
 from services.apple_services import fetch_apple_calendar, fetch_apple_music_data
 from data_processor import process_and_ingest_data
 from oauth import has_oauth_token, get_user_credentials
+from insights_engine import analyze_documents_for_insights
+from pinecone import Pinecone
 
 router = APIRouter()
+
+
+async def regenerate_and_save_insights(user_id: str):
+    """Background task to regenerate insights after new data is uploaded"""
+    try:
+        print(f"[INSIGHTS REGEN] Starting insight regeneration for user {user_id}")
+        
+        if not utils.embedding_model:
+            print("[INSIGHTS REGEN] Embedding model not initialized, skipping")
+            return
+        
+        # Get user's Pinecone index
+        user_settings = utils.supabase.table("user_settings").select("*").eq("user_id", user_id).execute()
+        if not user_settings.data:
+            print("[INSIGHTS REGEN] User settings not found, skipping")
+            return
+        
+        pinecone_index_name = user_settings.data[0].get("pinecone_index")
+        if not pinecone_index_name:
+            print("[INSIGHTS REGEN] No Pinecone index found, skipping")
+            return
+        
+        pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+        index_to_use = pc.Index(pinecone_index_name)
+        
+        # Query Pinecone for documents
+        query_embedding = utils.embedding_model.encode(
+            "important events activities people places work personal life"
+        ).tolist()
+        
+        results = index_to_use.query(
+            vector=query_embedding,
+            top_k=20,
+            include_metadata=True
+        )
+        
+        documents = []
+        for match in results.get('matches', []):
+            metadata = match.get('metadata', {})
+            if metadata.get('text'):
+                documents.append({
+                    'id': match.get('id'),
+                    'metadata': metadata,
+                    'score': match.get('score', 0)
+                })
+        
+        if not documents:
+            print("[INSIGHTS REGEN] No documents found, skipping")
+            return
+        
+        # Generate insights
+        insights = analyze_documents_for_insights(documents, user_id)
+        print(f"[INSIGHTS REGEN] Generated {len(insights)} insights")
+        
+        if not insights:
+            return
+        
+        # Save insights to Supabase
+        saved_count = 0
+        for insight in insights:
+            record = {
+                'user_id': user_id,
+                'insight_id': insight.get('id', f"insight_{saved_count}"),
+                'category': insight.get('category', 'general'),
+                'title': insight.get('title', 'Untitled Insight'),
+                'description': insight.get('description', ''),
+                'significance_score': insight.get('significance_score', 0.5),
+                'sources': insight.get('sources', []),
+                'detected_at': insight.get('detected_at', datetime.now().isoformat()),
+                'time_context': insight.get('time_context', {}),
+                'entities': insight.get('entities', []),
+                'actionable': insight.get('actionable', False),
+            }
+            result = utils.supabase.table("user_insights").upsert(
+                record,
+                on_conflict="user_id,insight_id"
+            ).execute()
+            if result.data:
+                saved_count += 1
+        
+        print(f"[INSIGHTS REGEN] Saved {saved_count} insights to database")
+        
+        # Generate and save LLM thoughts based on new insights
+        from services.llm_service import LLMService
+        llm_service = LLMService()
+        
+        prompts = [
+            {"type": "summary", "title": "Life Summary", "prompt": f"Based on these insights, provide a comprehensive summary. Insights: {insights}"},
+            {"type": "recommendations", "title": "Actionable Recommendations", "prompt": f"Based on these insights, provide 3-5 actionable recommendations. Insights: {insights}"},
+            {"type": "patterns", "title": "Emerging Patterns", "prompt": f"Analyze these insights and identify significant patterns. Insights: {insights}"},
+            {"type": "opportunities", "title": "Growth Opportunities", "prompt": f"What are the biggest opportunities for personal growth? Insights: {insights}"},
+            {"type": "reflection", "title": "Deep Reflection", "prompt": f"Provide a thoughtful reflection on what these insights reveal. Insights: {insights}"},
+        ]
+        
+        thoughts = []
+        for prompt_data in prompts:
+            try:
+                response = await llm_service.generate_response(prompt_data["prompt"])
+                thoughts.append({
+                    'id': f"{prompt_data['type']}_{datetime.now().timestamp()}",
+                    'thought_type': prompt_data["type"],
+                    'title': prompt_data["title"],
+                    'content': response,
+                    'prompt_used': prompt_data["prompt"],
+                    'generated_at': datetime.now().isoformat(),
+                })
+            except Exception as e:
+                print(f"[INSIGHTS REGEN] Error generating thought: {e}")
+                continue
+        
+        # Save thoughts to Supabase
+        thought_count = 0
+        for thought in thoughts:
+            result = utils.supabase.table("llm_thoughts").upsert(
+                {
+                    'user_id': user_id,
+                    'thought_id': thought['id'],
+                    'thought_type': thought['thought_type'],
+                    'title': thought['title'],
+                    'content': thought['content'],
+                    'prompt_used': thought['prompt_used'],
+                    'generated_at': thought['generated_at'],
+                },
+                on_conflict="user_id,thought_id"
+            ).execute()
+            if result.data:
+                thought_count += 1
+        
+        print(f"[INSIGHTS REGEN] Saved {thought_count} thoughts to database")
+
+        # Promote confirmed candidate facts to real facts
+        try:
+            from facts.pipeline import promote_confirmed_candidates
+            promoted = await promote_confirmed_candidates(user_id)
+            print(f"[INSIGHTS REGEN] Promoted {promoted} candidate facts")
+        except Exception as e:
+            print(f"[INSIGHTS REGEN] Error promoting candidates: {e}")
+        
+    except Exception as e:
+        print(f"[INSIGHTS REGEN] ERROR: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 @router.post("/upload-messages")
@@ -104,9 +248,11 @@ async def upload_android_sms(user_id: str = Body(...), messages: List[dict] = Bo
 
 @router.post("/upload-documents")
 async def upload_documents(request: UploadDocumentsRequest, background_tasks: BackgroundTasks):
-    """Upload documents based on user permissions"""
-    print(f"[UPLOAD] Starting document upload for user {request.user_id}")
-    print(f"[UPLOAD] Permissions: {request.permissions}")
+    print(f"[UPLOAD] ===== STARTING DOCUMENT UPLOAD =====")
+    print(f"[UPLOAD] User ID: {request.user_id}")
+    print(f"[UPLOAD] Requested permissions: {request.permissions}")
+    print(f"[UPLOAD] Timestamp: {datetime.now().isoformat()}")
+    
     try:
         # Get user's Pinecone index
         if not utils.supabase:
@@ -127,14 +273,38 @@ async def upload_documents(request: UploadDocumentsRequest, background_tasks: Ba
         uploaded_data_sources = user_settings.data[0].get("uploaded_data_sources", {})
         print(f"[UPLOAD] Existing permissions: {existing_permissions}")
         print(f"[UPLOAD] Uploaded data sources: {uploaded_data_sources}")
+        
+        # Detailed analysis of each permission
+        print(f"[UPLOAD] ===== PERMISSION ANALYSIS =====")
+        for key, value in request.permissions.items():
+            existing_value = existing_permissions.get(key, False)
+            upload_status = uploaded_data_sources.get(key)
+            print(f"[UPLOAD] {key}: requested={value}, existing={existing_value}, upload_status={upload_status}")
+        print(f"[UPLOAD] ===== END PERMISSION ANALYSIS =====")
 
         # Determine which permissions need data uploaded
-        # A permission needs upload if it's True and hasn't been uploaded yet
+        # Upload data if permission is True and either:
+        # 1. Permission is newly granted (was False before, now True)
+        # 2. Permission existed but data has never been uploaded before (upload_status is None)
         permissions_to_upload = {}
         for key, value in request.permissions.items():
-            if value and not uploaded_data_sources.get(key):
+            existing_value = existing_permissions.get(key, False)  # Default to False if not existing
+            upload_status = uploaded_data_sources.get(key)
+            
+            # Upload if:
+            # 1. Permission is True now
+            # 2. Either permission is newly granted OR data has never been uploaded before (upload_status is None)
+            # Note: We do NOT upload if upload_status is False (failed upload) to prevent infinite loops
+            if value and (not existing_value or upload_status is None):
                 permissions_to_upload[key] = value
-                print(f"[UPLOAD] Permission needs upload: {key} = {value} (uploaded: {uploaded_data_sources.get(key)})")
+                if not existing_value:
+                    print(f"[UPLOAD] Permission newly granted: {key} = {value} (was: {existing_value}, uploaded: {upload_status})")
+                else:
+                    print(f"[UPLOAD] Permission exists but never uploaded: {key} = {value} (uploaded: {upload_status})")
+            elif value and existing_value and upload_status is True:
+                print(f"[UPLOAD] Permission already uploaded: {key} = {value} (uploaded: {upload_status})")
+            elif value and existing_value and upload_status is False:
+                print(f"[UPLOAD] Permission previously failed, skipping to prevent infinite loop: {key} = {value} (uploaded: {upload_status})")
 
         if not permissions_to_upload:
             print(f"[UPLOAD] No new data to upload. All enabled permissions already uploaded.")
@@ -279,16 +449,27 @@ async def upload_documents(request: UploadDocumentsRequest, background_tasks: Ba
         elif request.permissions.get("appleMusic"):
             print(f"[UPLOAD] Skipping appleMusic (data already uploaded)")
 
-        # Update uploaded_data_sources to mark successfully uploaded data sources
-        successfully_uploaded = {}
+        # Update uploaded_data_sources to mark both successfully uploaded and attempted data sources
+        # This prevents infinite loops when uploads fail
+        upload_status = {}
         for key, count in results.items():
+            # Mark as uploaded if successful, mark as attempted if failed
             if count > 0:
-                successfully_uploaded[key] = True
+                upload_status[key] = True  # Successfully uploaded
+            else:
+                upload_status[key] = False  # Attempted but failed
 
-        if successfully_uploaded:
-            print(f"[UPLOAD] Marking data sources as uploaded: {successfully_uploaded}")
-            # Merge with existing uploaded_data_sources
-            updated_uploaded_data_sources = {**uploaded_data_sources, **successfully_uploaded}
+        if upload_status:
+            print(f"[UPLOAD] Marking data sources upload status: {upload_status}")
+            # Merge with existing uploaded_data_sources, but only mark successful ones as uploaded
+            # Failed ones are marked as False to prevent infinite retries
+            updated_uploaded_data_sources = {**uploaded_data_sources}
+            for key, status in upload_status.items():
+                if status:  # Only mark as uploaded if successful
+                    updated_uploaded_data_sources[key] = True
+                else:  # Mark as attempted but failed to prevent infinite loops
+                    updated_uploaded_data_sources[key] = False
+            
             utils.supabase.table("user_settings").update({
                 "uploaded_data_sources": updated_uploaded_data_sources
             }).eq("user_id", request.user_id).execute()
@@ -303,6 +484,11 @@ async def upload_documents(request: UploadDocumentsRequest, background_tasks: Ba
             "setup_step": 4  # 4 = complete
         }).eq("user_id", request.user_id).execute()
 
+        # Trigger background insight regeneration if new data was processed
+        if total_processed > 0:
+            print(f"[UPLOAD] Triggering background insight regeneration...")
+            background_tasks.add_task(regenerate_and_save_insights, request.user_id)
+
         return {
             "message": f"Successfully processed {total_processed} documents",
             "details": results
@@ -310,6 +496,106 @@ async def upload_documents(request: UploadDocumentsRequest, background_tasks: Ba
 
     except Exception as e:
         print(f"[UPLOAD] FATAL ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/reset-upload-status")
+async def reset_upload_status(user_id: str = Body(...), data_sources: List[str] = Body(default=[])):
+    """Reset upload status for specific data sources to allow retrying failed uploads"""
+    print(f"[RESET UPLOAD] Resetting upload status for user {user_id}")
+    print(f"[RESET UPLOAD] Data sources to reset: {data_sources}")
+    
+    try:
+        if not utils.supabase:
+            raise HTTPException(status_code=503, detail="Supabase not initialized")
+        
+        # Get current user settings
+        user_settings = utils.supabase.table("user_settings").select("*").eq("user_id", user_id).execute()
+        
+        if not user_settings.data:
+            raise HTTPException(status_code=400, detail="User not found")
+        
+        uploaded_data_sources = user_settings.data[0].get("uploaded_data_sources", {})
+        
+        # Reset specified data sources (or all if none specified)
+        if not data_sources:
+            # Reset all failed uploads (False values) and allow retry
+            data_sources_to_reset = [key for key, status in uploaded_data_sources.items() if status is False]
+            print(f"[RESET UPLOAD] Auto-detected failed sources: {data_sources_to_reset}")
+        else:
+            data_sources_to_reset = data_sources
+        
+        # Remove the specified data sources from uploaded_data_sources
+        updated_uploaded_data_sources = uploaded_data_sources.copy()
+        for source in data_sources_to_reset:
+            if source in updated_uploaded_data_sources:
+                del updated_uploaded_data_sources[source]
+                print(f"[RESET UPLOAD] Reset upload status for: {source}")
+        
+        # Update the database
+        utils.supabase.table("user_settings").update({
+            "uploaded_data_sources": updated_uploaded_data_sources
+        }).eq("user_id", user_id).execute()
+        
+        return {
+            "message": f"Reset upload status for {len(data_sources_to_reset)} data sources",
+            "reset_sources": data_sources_to_reset,
+            "remaining_status": updated_uploaded_data_sources
+        }
+        
+    except Exception as e:
+        print(f"[RESET UPLOAD] ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/upload-status/{user_id}")
+async def get_upload_status(user_id: str):
+    """Get current upload status for all data sources"""
+    print(f"[UPLOAD STATUS] Getting upload status for user {user_id}")
+    
+    try:
+        if not utils.supabase:
+            raise HTTPException(status_code=503, detail="Supabase not initialized")
+        
+        # Get current user settings
+        user_settings = utils.supabase.table("user_settings").select("*").eq("user_id", user_id).execute()
+        
+        if not user_settings.data:
+            raise HTTPException(status_code=400, detail="User not found")
+        
+        settings = user_settings.data[0]
+        permissions = settings.get("permissions", {})
+        uploaded_data_sources = settings.get("uploaded_data_sources", {})
+        
+        # Build detailed status
+        status_details = {}
+        for key, permission_value in permissions.items():
+            upload_status = uploaded_data_sources.get(key)
+            status_details[key] = {
+                "permission_enabled": permission_value,
+                "upload_status": upload_status,
+                "status_description": (
+                    "Successfully uploaded" if upload_status is True
+                    else "Upload failed" if upload_status is False
+                    else "Not uploaded yet" if upload_status is None and permission_value
+                    else "Permission disabled" if not permission_value
+                    else "Unknown status"
+                )
+            }
+        
+        return {
+            "user_id": user_id,
+            "permissions": permissions,
+            "uploaded_data_sources": uploaded_data_sources,
+            "status_details": status_details
+        }
+        
+    except Exception as e:
+        print(f"[UPLOAD STATUS] ERROR: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

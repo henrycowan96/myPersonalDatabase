@@ -1,0 +1,302 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.9, 3.10, 3.11]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install bandit safety pytest-cov
+    
+    - name: Lint with flake8
+      run: |
+        pip install flake8
+        flake8 app --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 app --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Security scan with bandit
+      run: |
+        bandit -r app/ -f json -o bandit-report.json || true
+        bandit -r app/ --severity-level high
+    
+    - name: Check dependencies for security vulnerabilities
+      run: |
+        safety check --json --output safety-report.json || true
+        safety check
+    
+    - name: Run tests with pytest
+      run: |
+        pytest app/ --cov=app --cov-report=xml --cov-report=html --cov-fail-under=90 -v
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: backend
+        name: backend-coverage
+    
+    - name: Archive test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: backend-test-results-${{ matrix.python-version }}
+        path: |
+          htmlcov/
+          bandit-report.json
+          safety-report.json
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: |
+          package-lock.json
+          My Personal Database Mobile/package-lock.json
+    
+    - name: Install backend dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Install frontend dependencies
+      run: |
+        cd "My Personal Database Mobile"
+        npm ci
+    
+    - name: Run frontend tests
+      run: |
+        cd "My Personal Database Mobile"
+        npm run test:ci
+    
+    - name: Upload frontend coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./My Personal Database Mobile/coverage/lcov.info
+        flags: frontend
+        name: frontend-coverage
+
+  security-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit safety semgrep
+        npm install -g audit-ci
+    
+    - name: Run comprehensive security scan
+      run: |
+        # Backend security scan
+        bandit -r app/ -f json -o security-bandit.json || true
+        safety check --json --output safety-scan.json || true
+        semgrep --config=auto --json --output=semgrep-report.json app/ || true
+        
+        # Frontend security audit
+        cd "My Personal Database Mobile"
+        audit-ci --moderate
+    
+    - name: Run SAST scan
+      uses: github/super-linter@v4
+      env:
+        DEFAULT_BRANCH: main
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VALIDATE_PYTHON_BLACK: false
+        VALIDATE_PYTHON_FLAKE8: false
+        VALIDATE_JAVASCRIPT_ES: false
+        VALIDATE_TYPESCRIPT_ES: false
+    
+    - name: Archive security reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-reports
+        path: |
+          security-bandit.json
+          safety-scan.json
+          semgrep-report.json
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        # Backend setup
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+        # Frontend setup
+        cd "My Personal Database Mobile"
+        npm ci
+        
+        # Install Playwright
+        npx playwright install --with-deps
+    
+    - name: Start backend services
+      run: |
+        # Start backend in background
+        python api.py &
+        sleep 10
+        
+        # Verify backend is running
+        curl -f http://localhost:8000/health || exit 1
+    
+    - name: Start frontend
+      run: |
+        cd "My Personal Database Mobile"
+        npm run web &
+        sleep 15
+        
+        # Verify frontend is running
+        curl -f http://localhost:19006 || exit 1
+    
+    - name: Run E2E tests
+      run: |
+        cd "My Personal Database Mobile"
+        npx playwright test
+    
+    - name: Upload E2E test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: e2e-test-results
+        path: |
+          My Personal Database Mobile/playwright-report/
+          My Personal Database Mobile/test-results/
+
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, security-tests, e2e-tests]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Build and push backend image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/personal-database-backend:latest
+          ${{ secrets.DOCKER_USERNAME }}/personal-database-backend:${{ github.sha }}
+    
+    - name: Build mobile app
+      run: |
+        cd "My Personal Database Mobile"
+        npx expo install
+        eas build --platform all --non-interactive
+    
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment..."
+        # Add deployment commands here
+    
+    - name: Run smoke tests
+      run: |
+        echo "Running smoke tests on staging..."
+        # Add smoke test commands here
+    
+    - name: Deploy to production
+      if: success()
+      run: |
+        echo "Deploying to production..."
+        # Add production deployment commands here
+
+  performance-tests:
+    runs-on: ubuntu-latest
+    needs: build-and-deploy
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Install performance testing tools
+      run: |
+        npm install -g artillery lighthouse-cli
+    
+    - name: Run API performance tests
+      run: |
+        artillery run performance-test-api.yml
+    
+    - name: Run frontend performance tests
+      run: |
+        lighthouse --chrome-flags="--headless" --output=json --output-path=./lighthouse-report.json http://your-staging-url.com
+    
+    - name: Upload performance reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-reports
+        path: |
+          lighthouse-report.json
+          artillery-report.json
