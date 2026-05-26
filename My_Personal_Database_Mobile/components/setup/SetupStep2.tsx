@@ -20,9 +20,9 @@ export default function SetupStep2({ selectedProtocols, onToggleProtocol, onBack
           <Shield size={48} color="white" />
         </LinearGradient>
       </View>
-      <Text style={styles.cardTitle}>ACCESS PROTOCOLS</Text>
+      <Text style={styles.cardTitle}>Connect Your Notes</Text>
       <Text style={styles.cardSubtitle}>
-        Configure authorization for your data sources. All data remains end-to-end encrypted within your Vault.
+        Connect your Apple Notes to start chatting with them.
       </Text>
       
       <ProtocolSelector

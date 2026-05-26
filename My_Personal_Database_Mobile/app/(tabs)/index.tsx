@@ -8,6 +8,8 @@ import {
   Alert,
   Animated,
   Platform,
+  TouchableOpacity,
+  Text,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import axios from 'axios';
@@ -20,6 +22,7 @@ import ChatMessage from '../../components/chat/ChatMessage';
 import LoadingIndicator from '../../components/chat/LoadingIndicator';
 import SourceModal from '../../components/chat/SourceModal';
 import ChatInput from '../../components/chat/ChatInput';
+import LoadingScreen from '../../components/LoadingScreen';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.100.119:8000';
 
@@ -30,6 +33,7 @@ export default function ChatScreen() {
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState<string>('');
+  const [initialLoading, setInitialLoading] = useState(true);
   const [routingDecision, setRoutingDecision] = useState<string | null>(null);
   const [routingReason, setRoutingReason] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
@@ -40,6 +44,9 @@ export default function ChatScreen() {
   const healthCheckRef = useRef<{ timeout: ReturnType<typeof setTimeout> | null; checked: boolean }>({ timeout: null, checked: false });
   const [selectedSource, setSelectedSource] = useState<any>(null);
   const [sourceModalVisible, setSourceModalVisible] = useState(false);
+  const [greetingVisible, setGreetingVisible] = useState(false);
+  const [greetingText, setGreetingText] = useState('');
+  const greetingSlideAnim = useRef(new Animated.Value(300)).current;
 
   const getSourceTitle = (source: any) => {
     if (!source || !source.metadata) return 'Source Document';
@@ -87,6 +94,7 @@ export default function ChatScreen() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
+      setInitialLoading(false);
     });
     checkHealth();
 
@@ -102,6 +110,13 @@ export default function ChatScreen() {
     // If session_id is passed in params, use it and clear the param
     if (params.sessionId && params.sessionId !== sessionId) {
       setSessionId(params.sessionId as string);
+      // Clear loading state and query when switching sessions
+      setLoading(false);
+      setLoadingStage('');
+      setQuery('');
+      setRoutingDecision(null);
+      setRoutingReason(null);
+      setInitialPromptConsumed(false);
       // Clear the sessionId param after consuming it
       router.setParams({ sessionId: undefined } as any);
     }
@@ -136,6 +151,42 @@ export default function ChatScreen() {
       loadChatHistory();
     }
   }, [user, sessionId]);
+
+  useEffect(() => {
+    // Show initial greeting when chat is empty and user is loaded
+    const showInitialGreeting = async () => {
+      if (user && chatHistory.length === 0 && !isKnowledgeSession) {
+        try {
+          const response = await axios.get(`${API_URL}/notes-count`, {
+            params: { user_id: user.id }
+          });
+          const notesCount = response.data.count || 0;
+          const greeting = `I've read ${notesCount} of your Apple Notes and am ready to discuss them.`;
+          setGreetingText(greeting);
+          setGreetingVisible(true);
+          // Animate slide up
+          Animated.timing(greetingSlideAnim, {
+            toValue: 0,
+            duration: 500,
+            useNativeDriver: true,
+          }).start();
+        } catch (error) {
+          console.error('Error fetching notes count:', error);
+          // Fallback greeting if count fetch fails
+          const greeting = `I've read your Apple Notes and am ready to discuss them.`;
+          setGreetingText(greeting);
+          setGreetingVisible(true);
+          Animated.timing(greetingSlideAnim, {
+            toValue: 0,
+            duration: 500,
+            useNativeDriver: true,
+          }).start();
+        }
+      }
+    };
+    
+    showInitialGreeting();
+  }, [user, chatHistory.length, isKnowledgeSession]);
 
   const fetchHealth = async (): Promise<string> => {
     const response = await axios.get(`${API_URL}/health`);
@@ -194,12 +245,27 @@ export default function ChatScreen() {
       return;
     }
     try {
+      // Filter messages to only include fields expected by backend
+      const filteredMessages = history
+        .filter(msg => msg.role && msg.content) // Only save messages with required fields
+        .map(msg => {
+          const message: any = {
+            role: msg.role,
+            content: msg.content,
+          };
+          // Only include sources if they exist
+          if (msg.sources && msg.sources.length > 0) {
+            message.sources = msg.sources;
+          }
+          return message;
+        });
+      
       await axios.post(`${API_URL}/chat-history/save`, {
         user_id: user.id,
         session_id: sessionId,
-        messages: history,
+        messages: filteredMessages,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving chat history:', error);
     }
   };
@@ -210,6 +276,8 @@ export default function ChatScreen() {
     setQuery('');
     setIsKnowledgeSession(false);
     setInitialPromptConsumed(false);
+    setGreetingVisible(false);
+    greetingSlideAnim.setValue(300);
     // Clear any lingering params
     router.setParams({ 
       initialPrompt: undefined, 
@@ -220,6 +288,15 @@ export default function ChatScreen() {
 
   const handleQuery = async () => {
     if (!query.trim() || !user) return;
+
+    // Hide greeting modal when user starts typing
+    if (greetingVisible) {
+      Animated.timing(greetingSlideAnim, {
+        toValue: 300,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => setGreetingVisible(false));
+    }
 
     const userMessage = { role: 'user', content: query };
     const newHistory = [...chatHistory, userMessage];
@@ -269,8 +346,8 @@ export default function ChatScreen() {
         role: 'assistant',
         content: response.data.answer,
         sources: response.data.sources,
-        routing_decision: response.data.routing_decision,
-        routing_reason: response.data.routing_reason,
+        routing_decision: response.data.routing_decision || 'knowledge',
+        routing_reason: response.data.routing_reason || '',
       };
       const updatedHistory = [...newHistory, assistantMessage];
       setChatHistory(updatedHistory);
@@ -289,6 +366,10 @@ export default function ChatScreen() {
       setLoadingStage('');
     }
   };
+
+  if (initialLoading) {
+    return <LoadingScreen message="Loading..." subtext="Preparing your chat" />;
+  }
 
   return (
     <View style={styles.container}>
@@ -312,25 +393,18 @@ export default function ChatScreen() {
           showsVerticalScrollIndicator={false}
         >
           {chatHistory.length === 0 ? (
-            <WelcomeScreen iconSource={require('../../assets/images/icon.png')} />
+            <WelcomeScreen iconSource={require('../../assets/images/adaptive-icon.png')} />
           ) : (
             chatHistory.map((message, index) => (
-              <View
+              <ChatMessage
                 key={index}
-                style={[
-                  styles.messageRow,
-                  { justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start' }
-                ]}
-              >
-                <ChatMessage
-                  message={message}
-                  onSourcePress={(source) => {
-                    setSelectedSource(source);
-                    setSourceModalVisible(true);
-                  }}
-                  getSourceTitle={getSourceTitle}
-                />
-              </View>
+                message={message}
+                onSourcePress={(source) => {
+                  setSelectedSource(source);
+                  setSourceModalVisible(true);
+                }}
+                getSourceTitle={getSourceTitle}
+              />
             ))
           )}
           
@@ -358,6 +432,29 @@ export default function ChatScreen() {
           getSourceTitle={getSourceTitle}
           onClose={() => setSourceModalVisible(false)}
         />
+
+        {/* Greeting Modal */}
+        {greetingVisible && (
+          <Animated.View style={[styles.greetingModal, { transform: [{ translateY: greetingSlideAnim }] }]}>
+            <TouchableOpacity 
+              style={styles.greetingCloseButton}
+              onPress={() => {
+                Animated.timing(greetingSlideAnim, {
+                  toValue: 300,
+                  duration: 300,
+                  useNativeDriver: true,
+                }).start(() => setGreetingVisible(false));
+              }}
+            >
+              <Text style={styles.greetingCloseText}>✕</Text>
+            </TouchableOpacity>
+            <View style={styles.greetingBubble}>
+              <View style={styles.greetingContent}>
+                <Text style={styles.greetingText}>{greetingText}</Text>
+              </View>
+            </View>
+          </Animated.View>
+        )}
       </SafeAreaView>
     </View>
   );
@@ -375,11 +472,51 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   chatContent: {
-    padding: 20,
+    padding: 16,
     paddingBottom: 40,
   },
-  messageRow: {
-    flexDirection: 'row',
-    marginBottom: 24,
+  greetingModal: {
+    position: 'absolute',
+    bottom: 150,
+    left: 16,
+    right: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+  },
+  greetingCloseButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  greetingCloseText: {
+    color: '#9ca3af',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  greetingBubble: {
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    shadowColor: '#8b5cf6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+  },
+  greetingContent: {
+    padding: 16,
+  },
+  greetingText: {
+    color: '#e5e7eb',
+    fontSize: 15,
+    fontWeight: '500',
+    lineHeight: 22,
   },
 });

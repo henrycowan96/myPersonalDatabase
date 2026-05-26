@@ -22,11 +22,11 @@ export default function SetupStep3({ selectedProtocols, isProcessing, onBack, on
           {isProcessing ? <ActivityIndicator size="large" color="white" /> : <Upload size={48} color="white" />}
         </LinearGradient>
       </View>
-      <Text style={styles.cardTitle}>{isProcessing ? 'INDEXING DATA' : 'FINALIZE VAULT'}</Text>
+      <Text style={styles.cardTitle}>{isProcessing ? 'Uploading Notes' : 'Upload Your Notes'}</Text>
       <Text style={styles.cardSubtitle}>
         {isProcessing 
-          ? 'Compiling and encrypting your data into the vector core. This may take a few moments.' 
-          : 'Review your selected protocols before starting the ingestion process.'}
+          ? 'Uploading your notes. This may take a few moments.' 
+          : 'Review your selected data sources before starting the upload process.'}
       </Text>
       
       {!isProcessing && (

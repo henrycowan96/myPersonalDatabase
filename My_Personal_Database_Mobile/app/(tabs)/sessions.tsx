@@ -20,8 +20,10 @@ import {
   Trash2,
   Clock,
   ChevronRight,
+  Calendar,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import LoadingScreen from '../../components/LoadingScreen';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.100.119:8000';
 
@@ -59,7 +61,9 @@ export default function SessionsScreen() {
         timeout: 10000, // 10 second timeout
       });
       
+      console.log('Sessions response:', response.data);
       const sessionData = response.data.sessions || [];
+      console.log('Session data:', sessionData);
       setSessions(sessionData);
     } catch (error) {
       console.error('Error fetching sessions:', error);
@@ -173,13 +177,7 @@ export default function SessionsScreen() {
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Image 
-              source={require('../../assets/images/icon.png')} 
-              style={styles.headerIcon}
-            />
-            <Text style={styles.title}>Sessions</Text>
-          </View>
+          <Text style={styles.title}>Sessions</Text>
           <TouchableOpacity onPress={handleCreateNewSession} style={styles.actionButton}>
             <Plus size={20} color="#fff" />
           </TouchableOpacity>
@@ -187,29 +185,9 @@ export default function SessionsScreen() {
 
         <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
           {!user ? (
-            <View style={styles.loadingContainer}>
-              <View style={styles.loadingContent}>
-                <ActivityIndicator size="large" color="#9333ea" />
-                <Text style={styles.loadingText}>Authenticating...</Text>
-                <View style={styles.loadingDots}>
-                  <View style={[styles.dot, styles.dot1]} />
-                  <View style={[styles.dot, styles.dot2]} />
-                  <View style={[styles.dot, styles.dot3]} />
-                </View>
-              </View>
-            </View>
+            <LoadingScreen message="Authenticating..." />
           ) : sessionsLoading ? (
-            <View style={styles.loadingContainer}>
-              <View style={styles.loadingContent}>
-                <ActivityIndicator size="large" color="#9333ea" />
-                <Text style={styles.loadingText}>Loading sessions...</Text>
-                <View style={styles.loadingDots}>
-                  <View style={[styles.dot, styles.dot1]} />
-                  <View style={[styles.dot, styles.dot2]} />
-                  <View style={[styles.dot, styles.dot3]} />
-                </View>
-              </View>
-            </View>
+            <LoadingScreen message="Loading sessions..." subtext="Retrieving your chat history" />
           ) : sessionsError ? (
             <View style={styles.errorState}>
               <View style={styles.errorIconContainer}>
@@ -234,46 +212,51 @@ export default function SessionsScreen() {
               </Text>
             </View>
           ) : (
-            <View style={styles.sessionList}>
-              {sessions?.map((session) => (
-                <TouchableOpacity
-                  key={session.session_id}
-                  style={styles.sessionCard}
-                  onPress={() => handleSelectSession(session.session_id)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.sessionLeft}>
-                    <View style={styles.sessionIcon}>
-                      <MessageSquare size={20} color="#9333ea" />
-                    </View>
-                    <View style={styles.sessionInfo}>
-                      <Text style={styles.sessionId}>SESSION {session.session_id ? session.session_id.slice(-6) : 'UNKNOWN'}</Text>
-                      <View style={styles.sessionMeta}>
-                        <Clock size={12} color="#64748b" />
-                        <Text style={styles.sessionDate}>{formatDate(session.created_at)}</Text>
-                        <Text style={styles.sessionDivider}>•</Text>
-                        <Text style={styles.messageCount}>{session.message_count} messages</Text>
+            <View style={styles.section}>
+              <Text style={styles.sectionHeader}>CHAT HISTORY</Text>
+              <View style={styles.sectionCard}>
+                {sessions?.map((session) => (
+                  <TouchableOpacity
+                    key={session.session_id}
+                    onPress={() => handleSelectSession(session.session_id)}
+                    activeOpacity={0.7}
+                    style={styles.sessionItem}
+                  >
+                    <View style={styles.sessionItemContent}>
+                      <View style={styles.sessionIconContainer}>
+                        <LinearGradient
+                          colors={['rgba(147, 51, 234, 0.2)', 'rgba(79, 70, 229, 0.1)']}
+                          style={styles.sessionIconGradient}
+                        >
+                          <MessageSquare size={20} color="#9333ea" />
+                        </LinearGradient>
                       </View>
+                      <View style={styles.sessionTextContainer}>
+                        <Text style={styles.sessionLabel}>SESSION {session.session_id ? session.session_id.slice(-6) : 'UNKNOWN'}</Text>
+                        <View style={styles.sessionMeta}>
+                          <Clock size={12} color="#64748b" />
+                          <Text style={styles.sessionDate}>{formatDate(session.created_at)}</Text>
+                          <Text style={styles.sessionDivider}>•</Text>
+                          <Text style={styles.messageCount}>{session.message_count} messages</Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => handleDeleteSession(session.session_id)}
+                        disabled={deleting === session.session_id}
+                        style={styles.deleteButton}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        {deleting === session.session_id ? (
+                          <ActivityIndicator size="small" color="#ef4444" />
+                        ) : (
+                          <Trash2 size={18} color="#64748b" />
+                        )}
+                      </TouchableOpacity>
+                      <ChevronRight size={18} color="#475569" style={{ marginLeft: 8 }} />
                     </View>
-                  </View>
-                  
-                  <View style={styles.sessionActions}>
-                    <TouchableOpacity
-                      onPress={() => handleDeleteSession(session.session_id)}
-                      disabled={deleting === session.session_id}
-                      style={styles.deleteButton}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                      {deleting === session.session_id ? (
-                        <ActivityIndicator size="small" color="#ef4444" />
-                      ) : (
-                        <Trash2 size={18} color="#64748b" />
-                      )}
-                    </TouchableOpacity>
-                    <ChevronRight size={18} color="#475569" style={{ marginLeft: 8 }} />
-                  </View>
-                </TouchableOpacity>
-              ))}
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           )}
         </ScrollView>
@@ -291,35 +274,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 4,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerIcon: {
-    width: 32,
-    height: 32,
-    marginRight: 12,
-    borderRadius: 8,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 34,
+    fontWeight: '800',
     color: '#fff',
+    letterSpacing: -0.5,
   },
   actionButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: '#1e293b',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
   },
   scrollArea: {
     flex: 1,
@@ -330,40 +304,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 60,
   },
-  loadingContent: {
-    alignItems: 'center',
-  },
   loadingText: {
     color: '#cbd5e1',
     fontSize: 16,
     fontWeight: '500',
     marginTop: 16,
-    marginBottom: 12,
-  },
-  loadingDots: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#9333ea',
-    marginHorizontal: 3,
-  },
-  dot1: {
-    opacity: 1,
-  },
-  dot2: {
-    opacity: 0.6,
-  },
-  dot3: {
-    opacity: 0.3,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 60,
+    paddingHorizontal: 40,
   },
   emptyIconContainer: {
     width: 100,
@@ -382,53 +333,61 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 4,
     marginBottom: 12,
+    textTransform: 'uppercase',
   },
   emptySubtitle: {
     color: '#94a3b8',
     textAlign: 'center',
     fontSize: 14,
     lineHeight: 22,
-    paddingHorizontal: 40,
     fontWeight: '500',
   },
-  sessionList: {
-    padding: 16,
+  section: {
+    marginBottom: 32,
   },
-  sessionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: 20,
-    padding: 16,
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+    letterSpacing: 1.5,
     marginBottom: 12,
+    paddingHorizontal: 24,
+    textTransform: 'uppercase',
+  },
+  sectionCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    marginHorizontal: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.05)',
   },
-  sessionLeft: {
+  sessionItem: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  sessionItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    padding: 16,
   },
-  sessionIcon: {
-    width: 40,
-    height: 40,
+  sessionIconContainer: {
+    marginRight: 16,
+  },
+  sessionIconGradient: {
+    width: 44,
+    height: 44,
     borderRadius: 12,
-    backgroundColor: 'rgba(147, 51, 234, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(147, 51, 234, 0.2)',
   },
-  sessionInfo: {
-    marginLeft: 12,
+  sessionTextContainer: {
     flex: 1,
   },
-  sessionId: {
+  sessionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 1,
     marginBottom: 4,
   },
   sessionMeta: {
@@ -450,10 +409,6 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontSize: 12,
     fontWeight: '500',
-  },
-  sessionActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   deleteButton: {
     padding: 8,
@@ -488,7 +443,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 4,
     marginBottom: 12,
-    textAlign: 'center',
+    textTransform: 'uppercase',
   },
   errorSubtitle: {
     color: '#94a3b8',

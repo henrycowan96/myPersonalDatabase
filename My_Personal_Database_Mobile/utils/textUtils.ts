@@ -40,6 +40,29 @@ export const stripMarkdown = (text: string): string => {
 };
 
 /**
+ * Removes HTML tags from text
+ * @param text - The text to clean
+ * @returns Cleaned text without HTML tags
+ */
+export const stripHtml = (text: string): string => {
+  if (!text) return '';
+  
+  return text
+    // Remove HTML tags
+    .replace(/<[^>]*>/g, '')
+    // Remove HTML entities
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    // Clean up extra whitespace
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+/**
  * Formats category names by replacing underscores with spaces and capitalizing words
  * @param category - The category name to format (e.g., "Financial_Milestone")
  * @returns Formatted category name (e.g., "Financial Milestone")

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Plus, Trash2 } from 'lucide-react-native';
 
 interface ChatHeaderProps {
@@ -10,20 +10,13 @@ interface ChatHeaderProps {
 export default function ChatHeader({ onNewChat, onClearHistory }: ChatHeaderProps) {
   return (
     <View style={styles.header}>
-      <View style={styles.headerLeft}>
-        <Image 
-          source={require('../../assets/images/icon.png')} 
-          style={styles.headerIcon}
-        />
-        <Text style={styles.title}>Chat</Text>
-      </View>
-      
+      <Text style={styles.title}>dhaki</Text>
       <View style={styles.headerActions}>
         <TouchableOpacity onPress={onNewChat} style={styles.actionButton}>
-          <Plus size={20} color="#fff" />
+          <Plus size={18} color="#9ca3af" />
         </TouchableOpacity>
         <TouchableOpacity onPress={onClearHistory} style={styles.actionButton}>
-          <Trash2 size={20} color="#fff" />
+          <Trash2 size={18} color="#9ca3af" />
         </TouchableOpacity>
       </View>
     </View>
@@ -32,38 +25,31 @@ export default function ChatHeader({ onNewChat, onClearHistory }: ChatHeaderProp
 
 const styles = StyleSheet.create({
   header: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 4,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerIcon: {
-    width: 32,
-    height: 32,
-    marginRight: 12,
-    borderRadius: 8,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#e5e7eb',
+    letterSpacing: -0.5,
   },
   headerActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
   },
   actionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
 });

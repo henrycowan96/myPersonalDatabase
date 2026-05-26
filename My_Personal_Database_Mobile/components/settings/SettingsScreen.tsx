@@ -19,6 +19,13 @@ import {
   LogOut,
   Cpu,
   Check,
+  ChevronRight,
+  Database,
+  User,
+  Bell,
+  Lock,
+  Globe,
+  Info,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { integrationItems } from './constants';
@@ -55,48 +62,46 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Image 
-              source={require('../../assets/images/icon.png')} 
-              style={styles.headerIcon}
-            />
-            <Text style={styles.title}>Settings</Text>
-          </View>
-          <TouchableOpacity style={styles.profileButton}>
-            <LinearGradient
-              colors={['#1e293b', '#0f172a']}
-              style={styles.profileIcon}
-            >
-              <CircleUser size={20} color="#9333ea" />
-            </LinearGradient>
-          </TouchableOpacity>
+          <Text style={styles.title}>Settings</Text>
         </View>
 
         <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
-          {/* Profile Row */}
-          <View style={styles.profileRow}>
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileEmail}>
-                {user?.email || 'ANONYMOUS'}
-              </Text>
-              <Text style={styles.profileLabel}>
-                USER
-              </Text>
-            </View>
+          {/* Profile Card */}
+          <View style={styles.profileCard}>
+            <LinearGradient
+              colors={['rgba(147, 51, 234, 0.2)', 'rgba(79, 70, 229, 0.1)']}
+              style={styles.profileGradient}
+            >
+              <View style={styles.profileAvatar}>
+                <LinearGradient
+                  colors={['#9333ea', '#4f46e5']}
+                  style={styles.avatarGradient}
+                >
+                  <User size={32} color="#fff" />
+                </LinearGradient>
+              </View>
+              <View style={styles.profileDetails}>
+                <Text style={styles.profileName}>
+                  {user?.email?.split('@')[0] || 'User'}
+                </Text>
+                <Text style={styles.profileEmail}>
+                  {user?.email || 'ANONYMOUS'}
+                </Text>
+              </View>
+            </LinearGradient>
           </View>
 
-          {/* Integrations Section - Grid Layout */}
+          {/* Data Sources Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>DATA INGESTION PROTOCOLS</Text>
-            
-            <View style={styles.gridContainer}>
-              {integrationItems.map(({ key, label, icon: Icon, image, color }) => {
+            <Text style={styles.sectionHeader}>DATA SOURCES</Text>
+            <View style={styles.sectionCard}>
+              {integrationItems.map(({ key, label, image, color }) => {
                 const isConnected = integrations[key as keyof typeof integrations];
-                
                 const animatedScale = chainAnimations[key]?.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [1, 1.05],
+                  outputRange: [1, 1.02],
                 }) || 1;
+                const isAppleNotes = key === 'appleNotes';
 
                 return (
                   <TouchableOpacity
@@ -104,77 +109,116 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     onPress={() => toggleIntegration(key)}
                     disabled={loading[key]}
                     activeOpacity={0.7}
-                    style={styles.gridItem}
+                    style={styles.settingItem}
                   >
-                    <Animated.View style={[
-                      styles.gridCard,
-                      {
-                        borderColor: isConnected ? color : 'rgba(255,255,255,0.1)',
-                        backgroundColor: isConnected ? `${color}20` : 'rgba(0,0,0,0.4)',
-                        transform: [{ scale: animatedScale }],
-                      }
-                    ]}>
-                      {loading[key] ? (
-                        <ActivityIndicator size={24} color={color} />
-                      ) : isConnected ? (
-                        <Check size={24} color={color} />
-                      ) : image ? (
-                        key === 'plaid' && !isConnected ? (
-                          <View style={styles.plaidIconContainer}>
-                            <Image source={image} style={styles.gridImage} resizeMode="contain" />
-                          </View>
-                        ) : (
-                          <Image 
-                            source={image} 
-                            style={
-                              ['appleNotes', 'iosHealth', 'androidHealth'].includes(key) 
-                                ? styles.gridImageExtraLarge
-                                : key === 'linkedin'
-                                ? styles.gridImageMediumLarge
-                                : ['github', 'reddit', 'spotify'].includes(key)
-                                ? styles.gridImageLarge 
-                                : styles.gridImage
-                            } 
-                            resizeMode="contain" 
-                          />
-                        )
-                      ) : Icon ? (
-                        <Icon size={24} color={color} />
-                      ) : null}
+                    <Animated.View style={[styles.settingItemContent, { transform: [{ scale: animatedScale }] }]}>
+                      <View style={styles.settingIconContainer}>
+                        <LinearGradient
+                          colors={isConnected ? [color, `${color}cc`] : ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
+                          style={styles.settingIconGradient}
+                        >
+                          {loading[key] ? (
+                            <ActivityIndicator size={20} color={isConnected ? '#fff' : '#64748b'} />
+                          ) : isConnected ? (
+                            <Check size={20} color="#fff" />
+                          ) : (
+                            <Image 
+                              source={image} 
+                              style={styles.settingIcon}
+                              resizeMode="contain" 
+                            />
+                          )}
+                        </LinearGradient>
+                      </View>
+                      <View style={styles.settingTextContainer}>
+                        <Text style={[styles.settingLabel, { color: isConnected ? '#fff' : '#94a3b8' }]}>
+                          {label}
+                        </Text>
+                        <Text style={styles.settingDescription}>
+                          {isConnected ? 'Connected' : 'Not connected'}
+                        </Text>
+                      </View>
+                      <ChevronRight size={20} color="#475569" />
                     </Animated.View>
-                    <Text style={[
-                      styles.gridLabel,
-                      { color: isConnected ? color : '#64748b' }
-                    ]}>
-                      {label}
-                    </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
           </View>
 
-          {/* System Actions */}
+          {/* System Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>SYSTEM OPERATIONS</Text>
+            <Text style={styles.sectionHeader}>SYSTEM</Text>
+            <View style={styles.sectionCard}>
+              <TouchableOpacity onPress={handleClearData} style={styles.settingItem}>
+                <View style={styles.settingItemContent}>
+                  <View style={styles.settingIconContainer}>
+                    <LinearGradient
+                      colors={['rgba(239, 68, 68, 0.2)', 'rgba(239, 68, 68, 0.1)']}
+                      style={styles.settingIconGradient}
+                    >
+                      {loading.clearData ? (
+                        <ActivityIndicator size={20} color="#ef4444" />
+                      ) : (
+                        <Database size={20} color="#ef4444" />
+                      )}
+                    </LinearGradient>
+                  </View>
+                  <View style={styles.settingTextContainer}>
+                    <Text style={[styles.settingLabel, styles.dangerText]}>Clear Data</Text>
+                    <Text style={styles.settingDescription}>Delete all your information</Text>
+                  </View>
+                  <ChevronRight size={20} color="#475569" />
+                </View>
+              </TouchableOpacity>
 
-            <TouchableOpacity onPress={handleClearData} style={styles.clearDataButton}>
-              {loading.clearData ? (
-                <ActivityIndicator size="small" color="#ef4444" />
-              ) : (
-                <>
-                  <Shield size={20} color="#ef4444" />
-                  <Text style={styles.clearDataText}>CLEAR MY DATA</Text>
-                </>
-              )}
-            </TouchableOpacity>
+              <TouchableOpacity onPress={handleLogout} style={styles.settingItem}>
+                <View style={styles.settingItemContent}>
+                  <View style={styles.settingIconContainer}>
+                    <LinearGradient
+                      colors={['rgba(239, 68, 68, 0.2)', 'rgba(239, 68, 68, 0.1)']}
+                      style={styles.settingIconGradient}
+                    >
+                      <LogOut size={20} color="#ef4444" />
+                    </LinearGradient>
+                  </View>
+                  <View style={styles.settingTextContainer}>
+                    <Text style={[styles.settingLabel, styles.dangerText]}>Log Out</Text>
+                    <Text style={styles.settingDescription}>Sign out of your account</Text>
+                  </View>
+                  <ChevronRight size={20} color="#475569" />
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
 
-            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-              <LogOut size={20} color="#ef4444" />
-              <Text style={styles.logoutText}>LOG OUT</Text>
-            </TouchableOpacity>
+          {/* About Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionHeader}>ABOUT</Text>
+            <View style={styles.sectionCard}>
+              <TouchableOpacity style={styles.settingItem}>
+                <View style={styles.settingItemContent}>
+                  <View style={styles.settingIconContainer}>
+                    <LinearGradient
+                      colors={['rgba(147, 51, 234, 0.2)', 'rgba(79, 70, 229, 0.1)']}
+                      style={styles.settingIconGradient}
+                    >
+                      <Info size={20} color="#9333ea" />
+                    </LinearGradient>
+                  </View>
+                  <View style={styles.settingTextContainer}>
+                    <Text style={styles.settingLabel}>Version</Text>
+                    <Text style={styles.settingDescription}>1.0.0</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
 
-                      </View>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Personal Database</Text>
+            <Text style={styles.footerSubtext}>© 2026 All rights reserved</Text>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -190,197 +234,133 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 4,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerIcon: {
-    width: 32,
-    height: 32,
-    marginRight: 12,
-    borderRadius: 8,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 34,
+    fontWeight: '800',
     color: '#fff',
-  },
-  profileButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  profileIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(147, 51, 234, 0.3)',
+    letterSpacing: -0.5,
   },
   scrollArea: {
     flex: 1,
   },
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
-  },
   profileCard: {
-    width: 60,
-    height: 60,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(147, 51, 234, 0.3)',
+    marginHorizontal: 16,
+    marginBottom: 24,
+    borderRadius: 20,
+    overflow: 'hidden',
     shadowColor: '#9333ea',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 8,
   },
-  profileInfo: {
-    marginLeft: 16,
-    flex: 1,
+  profileGradient: {
+    padding: 20,
+  },
+  profileAvatar: {
+    marginBottom: 16,
+  },
+  avatarGradient: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  profileDetails: {
+    marginLeft: 0,
+  },
+  profileName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 4,
   },
   profileEmail: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  profileLabel: {
-    color: '#9333ea',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 2,
-    marginTop: 4,
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.6)',
   },
   section: {
-    paddingHorizontal: 24,
-    paddingBottom: 32,
+    marginBottom: 32,
   },
-  sectionTitle: {
-    color: '#475569',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 3,
-    marginBottom: 16,
-    marginLeft: 8,
-  },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -8,
-  },
-  gridItem: {
-    width: '25%',
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  gridCard: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  gridLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1,
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  gridImage: {
-    width: 32,
-    height: 32,
-  },
-  gridImageLarge: {
-    width: 40,
-    height: 40,
-  },
-  gridImageMediumLarge: {
-    width: 36,
-    height: 36,
-  },
-  gridImageExtraLarge: {
-    width: 52,
-    height: 52,
-  },
-  plaidIconContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  clearDataButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-    height: 60,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.2)',
-    marginBottom: 12,
-  },
-  clearDataText: {
-    color: '#ef4444',
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 2,
-    marginLeft: 12,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-    height: 60,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.2)',
-  },
-  logoutText: {
-    color: '#ef4444',
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 2,
-    marginLeft: 12,
-  },
-  systemMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 32,
-    opacity: 0.4,
-  },
-  metaText: {
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: '600',
     color: '#64748b',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 2,
-    marginLeft: 8,
+    letterSpacing: 1.5,
+    marginBottom: 12,
+    paddingHorizontal: 24,
+    textTransform: 'uppercase',
+  },
+  sectionCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    marginHorizontal: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  settingItem: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  settingItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  settingIconContainer: {
+    marginRight: 16,
+  },
+  settingIconGradient: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingIcon: {
+    width: 24,
+    height: 24,
+  },
+  settingTextContainer: {
+    flex: 1,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 2,
+  },
+  settingDescription: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#64748b',
+  },
+  dangerText: {
+    color: '#ef4444',
+  },
+  footer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+  },
+  footerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#475569',
+    marginBottom: 4,
+  },
+  footerSubtext: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#64748b',
   },
 });

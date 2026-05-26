@@ -11,17 +11,18 @@ interface ProtocolSelectorProps {
 export default function ProtocolSelector({ selectedProtocols, onToggleProtocol, readonly = false }: ProtocolSelectorProps) {
   const protocols = [
     { key: 'appleNotes', name: 'Apple Notes', icon: '📝' },
-    { key: 'appleCalendar', name: 'Apple Calendar', icon: '📅' },
-    { key: 'appleMusic', name: 'Apple Music', icon: '🎵' },
-    ...(Platform.OS === 'ios' ? [{ key: 'iosContacts', name: 'iOS Contacts', icon: '👤' }] : []),
-    ...(Platform.OS === 'android' ? [{ key: 'androidContacts', name: 'Android Contacts', icon: '📱' }] : []),
-    { key: 'locationData', name: 'Location Data', icon: '📍' },
-    { key: 'spotify', name: 'Spotify', icon: '🎧' },
-    { key: 'googleCalendar', name: 'Google Calendar', icon: '📆' },
-    { key: 'gmail', name: 'Gmail Archive', icon: '📧' },
-    { key: 'googleDrive', name: 'Google Drive', icon: '💾' },
-    { key: 'github', name: 'GitHub', icon: '🐙' },
-    { key: 'zoom', name: 'Zoom', icon: '📹' },
+    // All other data sources disabled - only Apple Notes supported
+    // { key: 'appleCalendar', name: 'Apple Calendar', icon: '📅' },
+    // { key: 'appleMusic', name: 'Apple Music', icon: '🎵' },
+    // ...(Platform.OS === 'ios' ? [{ key: 'iosContacts', name: 'iOS Contacts', icon: '👤' }] : []),
+    // ...(Platform.OS === 'android' ? [{ key: 'androidContacts', name: 'Android Contacts', icon: '📱' }] : []),
+    // { key: 'locationData', name: 'Location Data', icon: '📍' },
+    // { key: 'spotify', name: 'Spotify', icon: '🎧' },
+    // { key: 'googleCalendar', name: 'Google Calendar', icon: '📆' },
+    // { key: 'gmail', name: 'Gmail Archive', icon: '📧' },
+    // { key: 'googleDrive', name: 'Google Drive', icon: '💾' },
+    // { key: 'github', name: 'GitHub', icon: '🐙' },
+    // { key: 'zoom', name: 'Zoom', icon: '📹' },
   ];
 
   return (

@@ -15,20 +15,20 @@ export default function LoadingIndicator({ loadingStage, routingDecision, dot1An
       <View style={styles.assistantBubble}>
         <View style={styles.loadingContent}>
           <View style={styles.loadingIndicatorContainer}>
-            <ActivityIndicator color="#9333ea" size="small" />
+            <ActivityIndicator color="#8b5cf6" size="small" />
           </View>
           <View style={styles.loadingTextContainer}>
-            <Text style={styles.loadingText}>{loadingStage || 'Processing...'}</Text>
+            <Text style={styles.loadingText}>{loadingStage || 'Thinking...'}</Text>
             {routingDecision === 'general' && (
               <Text style={styles.loadingSubtext}>
-                This is a general conversation - no database search needed
+                General conversation
               </Text>
             )}
           </View>
           <View style={styles.loadingDots}>
-            <Animated.View style={[styles.dot, { opacity: dot1Anim, transform: [{ scale: dot1Anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.3] }) }] }]} />
-            <Animated.View style={[styles.dot, { opacity: dot2Anim, transform: [{ scale: dot2Anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.3] }) }] }]} />
-            <Animated.View style={[styles.dot, { opacity: dot3Anim, transform: [{ scale: dot3Anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.3] }) }] }]} />
+            <Animated.View style={[styles.dot, { opacity: dot1Anim, transform: [{ scale: dot1Anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.2] }) }] }]} />
+            <Animated.View style={[styles.dot, { opacity: dot2Anim, transform: [{ scale: dot2Anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.2] }) }] }]} />
+            <Animated.View style={[styles.dot, { opacity: dot3Anim, transform: [{ scale: dot3Anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.2] }) }] }]} />
           </View>
         </View>
       </View>
@@ -39,13 +39,13 @@ export default function LoadingIndicator({ loadingStage, routingDecision, dot1An
 const styles = StyleSheet.create({
   loadingRow: {
     flexDirection: 'row',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   assistantBubble: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderTopLeftRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   loadingContent: {
     flexDirection: 'row',
@@ -56,19 +56,18 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   loadingText: {
-    color: '#cbd5e1',
-    fontSize: 14,
-    fontWeight: '500',
+    color: '#e5e7eb',
+    fontSize: 15,
+    fontWeight: '400',
   },
   loadingTextContainer: {
     flex: 1,
   },
   loadingSubtext: {
-    color: '#64748b',
-    fontSize: 11,
+    color: '#9ca3af',
+    fontSize: 12,
     fontWeight: '400',
-    marginTop: 4,
-    fontStyle: 'italic',
+    marginTop: 2,
   },
   loadingDots: {
     flexDirection: 'row',
@@ -76,10 +75,10 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#9333ea',
-    marginHorizontal: 3,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#8b5cf6',
+    marginHorizontal: 2,
   },
 });

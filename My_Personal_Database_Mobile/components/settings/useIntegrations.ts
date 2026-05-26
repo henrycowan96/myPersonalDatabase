@@ -87,26 +87,27 @@ export const useIntegrations = (user: any) => {
 
         setIntegrations({
           appleNotes: permissions.notes || false,
-          appleCalendar: permissions.appleCalendar || false,
-          appleMusic: permissions.appleMusic || false,
-          iosContacts: permissions.iosContacts || false,
-          androidContacts: permissions.androidContacts || false,
-          iosHealth: permissions.iosHealth || false,
-          androidHealth: permissions.androidHealth || false,
-          locationData: permissions.locationData || false,
-          googleCalendar: permissions.calendar || oauthStatus.calendar || false,
-          gmail: permissions.email || oauthStatus.gmail || false,
-          googleDrive: permissions.googleDrive || oauthStatus.google_drive || false,
-          mobileMessages: permissions.mobileMessages || false,
-          spotify: permissions.spotify || false,
-          linkedin: oauthStatus.linkedin || false,
-          outlook: oauthStatus.outlook || false,
-          github: oauthStatus.github || false,
-          notion: permissions.notion || oauthStatus.notion || false,
-          reddit: oauthStatus.reddit || false,
-          youtube: oauthStatus.youtube || false,
-          zoom: oauthStatus.zoom || false,
-          plaid: oauthStatus.plaid || false,
+          // All other data sources disabled - only Apple Notes supported
+          appleCalendar: false,
+          appleMusic: false,
+          iosContacts: false,
+          androidContacts: false,
+          iosHealth: false,
+          androidHealth: false,
+          locationData: false,
+          googleCalendar: false,
+          gmail: false,
+          googleDrive: false,
+          mobileMessages: false,
+          spotify: false,
+          linkedin: false,
+          outlook: false,
+          github: false,
+          notion: false,
+          reddit: false,
+          youtube: false,
+          zoom: false,
+          plaid: false,
         });
         loadIntegrationsRef.current.lastLoadTime = Date.now();
       } catch (error) {
@@ -220,802 +221,812 @@ export const useIntegrations = (user: any) => {
     }
   };
 
-  const handleLocationDataIngest = async () => {
-    setLoading((prev) => ({ ...prev, locationData: true }));
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      
-      if (status !== 'granted') {
-        Alert.alert('PERMISSION DENIED', 'Location permission is required to fetch your current location.');
-        setLoading((prev) => ({ ...prev, locationData: false }));
-        return;
-      }
+  // Location data disabled - only Apple Notes supported
+  // const handleLocationDataIngest = async () => {
+  //   setLoading((prev) => ({ ...prev, locationData: true }));
+  //   try {
+  //     const { status } = await Location.requestForegroundPermissionsAsync();
+  //     
+  //     if (status !== 'granted') {
+  //       Alert.alert('PERMISSION DENIED', 'Location permission is required to fetch your current location.');
+  //       setLoading((prev) => ({ ...prev, locationData: false }));
+  //       return;
+  //     }
 
-      const location = await Location.getCurrentPositionAsync({});
-      
-      const locationData = {
-        current_location: {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          timestamp: new Date(location.timestamp).toISOString(),
-          accuracy: location.coords.accuracy,
-          altitude: location.coords.altitude,
-          speed: location.coords.speed,
-        }
-      };
+  //     const location = await Location.getCurrentPositionAsync({});
+  //     
+  //     const locationData = {
+  //       current_location: {
+  //         latitude: location.coords.latitude,
+  //         longitude: location.coords.longitude,
+  //         timestamp: new Date(location.timestamp).toISOString(),
+  //         accuracy: location.coords.accuracy,
+  //         altitude: location.coords.altitude,
+  //         speed: location.coords.speed,
+  //       }
+  //     };
 
-      await axios.post(`${API_URL}/ingest-current-location`, {
-        user_id: user.id,
-        platform: Platform.OS,
-        location_data: locationData
-      });
+  //     await axios.post(`${API_URL}/ingest-current-location`, {
+  //       user_id: user.id,
+  //       platform: Platform.OS,
+  //       location_data: locationData
+  //     });
 
-      Alert.alert('SUCCESS', 'Current location ingested successfully.');
-    } catch (error) {
-      console.error('Location error:', error);
-      Alert.alert('ERROR', 'Failed to fetch or ingest location data.');
-    } finally {
-      setLoading((prev) => ({ ...prev, locationData: false }));
-    }
-  };
+  //     Alert.alert('SUCCESS', 'Current location ingested successfully.');
+  //   } catch (error) {
+  //     console.error('Location error:', error);
+  //     Alert.alert('ERROR', 'Failed to fetch or ingest location data.');
+  //   } finally {
+  //     setLoading((prev) => ({ ...prev, locationData: false }));
+  //   }
+  // };
 
-  const handleHealthDataIngest = async (platform: 'ios' | 'android') => {
-    const key = platform === 'ios' ? 'iosHealth' : 'androidHealth';
-    setLoading((prev) => ({ ...prev, [key]: true }));
-    try {
-      Alert.alert(
-        'HEALTH DATA',
-        'Health data requires native modules to access HealthKit (iOS) or Google Fit (Android). This feature is not available in Expo Go. In production, you would fetch health data from the device and send it to the backend.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Simulate',
-            onPress: async () => {
-              try {
-                const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-                const endDate = new Date();
-                
-                const healthData: {
-                  data_type: string;
-                  start_date: string;
-                  end_date: string;
-                  data: Array<{
-                    data_type: string;
-                    value: number | string;
-                    unit: string;
-                    date: string;
-                  }>;
-                } = {
-                  data_type: 'all',
-                  start_date: startDate.toISOString().split('T')[0],
-                  end_date: endDate.toISOString().split('T')[0],
-                  data: []
-                };
+  // Health data disabled - only Apple Notes supported
+  // const handleHealthDataIngest = async (platform: 'ios' | 'android') => {
+  //   const key = platform === 'ios' ? 'iosHealth' : 'androidHealth';
+  //   setLoading((prev) => ({ ...prev, [key]: true }));
+  //   try {
+  //     Alert.alert(
+  //       'HEALTH DATA',
+  //       'Health data requires native modules to access HealthKit (iOS) or Google Fit (Android). This feature is not available in Expo Go. In production, you would fetch health data from the device and send it to the backend.',
+  //       [
+  //         { text: 'Cancel', style: 'cancel' },
+  //         {
+  //           text: 'Simulate',
+  //           onPress: async () => {
+  //             try {
+  //               const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  //               const endDate = new Date();
+  //               
+  //               const healthData: {
+  //                 data_type: string;
+  //                 start_date: string;
+  //                 end_date: string;
+  //                 data: Array<{
+  //                   data_type: string;
+  //                   value: number | string;
+  //                   unit: string;
+  //                   date: string;
+  //                 }>;
+  //               } = {
+  //                 data_type: 'all',
+  //                 start_date: startDate.toISOString().split('T')[0],
+  //                 end_date: endDate.toISOString().split('T')[0],
+  //                 data: []
+  //               };
 
-                for (let i = 0; i < 7; i++) {
-                  const date = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
-                  const dateStr = date.toISOString();
+  //               for (let i = 0; i < 7; i++) {
+  //                 const date = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+  //                 const dateStr = date.toISOString();
 
-                  healthData.data.push({
-                    data_type: 'steps',
-                    value: Math.floor(6000 + Math.random() * 8000),
-                    unit: 'count',
-                    date: dateStr
-                  });
+  //                 healthData.data.push({
+  //                   data_type: 'steps',
+  //                   value: Math.floor(6000 + Math.random() * 8000),
+  //                   unit: 'count',
+  //                   date: dateStr
+  //                 });
 
-                  healthData.data.push({
-                    data_type: 'heart_rate',
-                    value: Math.floor(60 + Math.random() * 20),
-                    unit: 'bpm',
-                    date: dateStr
-                  });
+  //                 healthData.data.push({
+  //                   data_type: 'heart_rate',
+  //                   value: Math.floor(60 + Math.random() * 20),
+  //                   unit: 'bpm',
+  //                   date: dateStr
+  //                 });
 
-                  healthData.data.push({
-                    data_type: 'distance',
-                    value: (3 + Math.random() * 5).toFixed(2),
-                    unit: 'km',
-                    date: dateStr
-                  });
+  //                 healthData.data.push({
+  //                   data_type: 'distance',
+  //                   value: (3 + Math.random() * 5).toFixed(2),
+  //                   unit: 'km',
+  //                   date: dateStr
+  //                 });
 
-                  healthData.data.push({
-                    data_type: 'active_energy',
-                    value: Math.floor(200 + Math.random() * 400),
-                    unit: 'kcal',
-                    date: dateStr
-                  });
+  //                 healthData.data.push({
+  //                   data_type: 'active_energy',
+  //                   value: Math.floor(200 + Math.random() * 400),
+  //                   unit: 'kcal',
+  //                   date: dateStr
+  //                 });
 
-                  if (i % 2 === 0) {
-                    healthData.data.push({
-                      data_type: 'sleep',
-                      value: (6 + Math.random() * 3).toFixed(1),
-                      unit: 'hours',
-                      date: dateStr
-                    });
-                  }
-                }
+  //                 if (i % 2 === 0) {
+  //                   healthData.data.push({
+  //                     data_type: 'sleep',
+  //                     value: (6 + Math.random() * 3).toFixed(1),
+  //                     unit: 'hours',
+  //                     date: dateStr
+  //                   });
+  //                 }
+  //               }
 
-                await axios.post(`${API_URL}/ingest-health-data`, {
-                  user_id: user.id,
-                  platform: platform,
-                  health_data: healthData
-                });
+  //               await axios.post(`${API_URL}/ingest-health-data`, {
+  //                 user_id: user.id,
+  //                 platform: platform,
+  //                 health_data: healthData
+  //               });
 
-                Alert.alert('SUCCESS', `Health data ingested successfully (simulated ${healthData.data.length} data points).`);
-              } catch (error) {
-                console.error('Health data error:', error);
-                Alert.alert('ERROR', 'Failed to ingest health data.');
-              }
-            }
-          }
-        ]
-      );
-    } catch (error) {
-      console.error('Health data error:', error);
-      Alert.alert('ERROR', 'Failed to process health data request.');
-    } finally {
-      setLoading((prev) => ({ ...prev, [key]: false }));
-    }
-  };
+  //               Alert.alert('SUCCESS', `Health data ingested successfully (simulated ${healthData.data.length} data points).`);
+  //             } catch (error) {
+  //               console.error('Health data error:', error);
+  //               Alert.alert('ERROR', 'Failed to ingest health data.');
+  //             }
+  //           }
+  //         }
+  //       ]
+  //     );
+  //   } catch (error) {
+  //     console.error('Health data error:', error);
+  //     Alert.alert('ERROR', 'Failed to process health data request.');
+  //   } finally {
+  //     setLoading((prev) => ({ ...prev, [key]: false }));
+  //   }
+  // };
 
-  const handleAppleMusicConnect = async () => {
-    Alert.alert('NOT AVAILABLE', 'Apple Music integration requires native modules not available in Expo Go');
-  };
+  // Apple Music disabled - only Apple Notes supported
+  // const handleAppleMusicConnect = async () => {
+  //   Alert.alert('NOT AVAILABLE', 'Apple Music integration requires native modules not available in Expo Go');
+  // };
 
-  const handleSpotifyConnect = async () => {
-    setLoading((prev) => ({ ...prev, spotify: true }));
-    try {
-      console.log('[SPOTIFY] Requesting authorization URL');
-      const response = await axios.get(`${API_URL}/spotify/authorize`, {
-        params: { user_id: user.id }
-      });
+  // Spotify disabled - only Apple Notes supported
+  // const handleSpotifyConnect = async () => {
+  //   setLoading((prev) => ({ ...prev, spotify: true }));
+  //   try {
+  //     console.log('[SPOTIFY] Requesting authorization URL');
+  //     const response = await axios.get(`${API_URL}/spotify/authorize`, {
+  //       params: { user_id: user.id }
+  //     });
 
-      console.log('[SPOTIFY] Authorization response:', response.data);
-      const { authorization_url } = response.data;
+  //     console.log('[SPOTIFY] Authorization response:', response.data);
+  //     const { authorization_url } = response.data;
 
-      if (!authorization_url) {
-        throw new Error('No authorization URL in response');
-      }
+  //     if (!authorization_url) {
+  //       throw new Error('No authorization URL in response');
+  //     }
 
-      const supported = await Linking.canOpenURL(authorization_url);
-      if (supported) {
-        console.log('[SPOTIFY] Opening authorization URL');
-        // Set OAuth in progress flag to prevent auto-logout
-        await SecureStore.setItemAsync('oauth_in_progress', 'true');
-        await Linking.openURL(authorization_url);
+  //     const supported = await Linking.canOpenURL(authorization_url);
+  //     if (supported) {
+  //       console.log('[SPOTIFY] Opening authorization URL');
+  //       // Set OAuth in progress flag to prevent auto-logout
+  //       await SecureStore.setItemAsync('oauth_in_progress', 'true');
+  //       await Linking.openURL(authorization_url);
 
-        // Clear any existing spotify polling interval
-        if (pollingIntervalsRef.current['spotify']) {
-          clearInterval(pollingIntervalsRef.current['spotify']);
-          delete pollingIntervalsRef.current['spotify'];
-        }
+  //       // Clear any existing spotify polling interval
+  //       if (pollingIntervalsRef.current['spotify']) {
+  //         clearInterval(pollingIntervalsRef.current['spotify']);
+  //         delete pollingIntervalsRef.current['spotify'];
+  //       }
 
-        let pollAttempts = 0;
-        const maxAttempts = 150; // Increased from 90 to 150 (5 minutes)
+  //       let pollAttempts = 0;
+  //       const maxAttempts = 150; // Increased from 90 to 150 (5 minutes)
 
-        console.log('[SPOTIFY] Starting polling interval');
-        const pollInterval = setInterval(async () => {
-          pollAttempts++;
+  //       console.log('[SPOTIFY] Starting polling interval');
+  //       const pollInterval = setInterval(async () => {
+  //         pollAttempts++;
 
-          try {
-            const authResponse = await axios.get(`${API_URL}/auth/status/${user.id}`);
-            const status = authResponse.data.status || {};
-            console.log('[SPOTIFY POLL] Auth status:', status, 'Attempt:', pollAttempts);
+  //         try {
+  //           const authResponse = await axios.get(`${API_URL}/auth/status/${user.id}`);
+  //           const status = authResponse.data.status || {};
+  //           console.log('[SPOTIFY POLL] Auth status:', status, 'Attempt:', pollAttempts);
 
-            if (status.spotify || pollAttempts >= maxAttempts) {
-              clearInterval(pollInterval);
-              delete pollingIntervalsRef.current['spotify'];
-              // Clear OAuth in progress flag
-              await SecureStore.setItemAsync('oauth_in_progress', 'false');
+  //           if (status.spotify || pollAttempts >= maxAttempts) {
+  //             clearInterval(pollInterval);
+  //             delete pollingIntervalsRef.current['spotify'];
+  //             // Clear OAuth in progress flag
+  //             await SecureStore.setItemAsync('oauth_in_progress', 'false');
 
-              if (status.spotify) {
-                console.log('[SPOTIFY] Authorization detected, starting data upload');
-                const newPermissions = { ...integrations, spotify: true };
+  //             if (status.spotify) {
+  //               console.log('[SPOTIFY] Authorization detected, starting data upload');
+  //               const newPermissions = { ...integrations, spotify: true };
 
-                const apiPermissions = {
-                  notes: newPermissions.appleNotes,
-                  appleCalendar: newPermissions.appleCalendar,
-                  appleMusic: newPermissions.appleMusic,
-                  iosContacts: newPermissions.iosContacts,
-                  androidContacts: newPermissions.androidContacts,
-                  iosHealth: newPermissions.iosHealth,
-                  androidHealth: newPermissions.androidHealth,
-                  locationData: newPermissions.locationData,
-                  calendar: newPermissions.googleCalendar,
-                  email: newPermissions.gmail,
-                  googleDrive: newPermissions.googleDrive,
-                  mobileMessages: newPermissions.mobileMessages,
-                  spotify: newPermissions.spotify,
-                  youtube: newPermissions.youtube,
-                };
+  //               const apiPermissions = {
+  //                 notes: newPermissions.appleNotes,
+  //                 appleCalendar: newPermissions.appleCalendar,
+  //                 appleMusic: newPermissions.appleMusic,
+  //                 iosContacts: newPermissions.iosContacts,
+  //                 androidContacts: newPermissions.androidContacts,
+  //                 iosHealth: newPermissions.iosHealth,
+  //                 androidHealth: newPermissions.androidHealth,
+  //                 locationData: newPermissions.locationData,
+  //                 calendar: newPermissions.googleCalendar,
+  //                 email: newPermissions.gmail,
+  //                 googleDrive: newPermissions.googleDrive,
+  //                 mobileMessages: newPermissions.mobileMessages,
+  //                 spotify: newPermissions.spotify,
+  //                 youtube: newPermissions.youtube,
+  //               };
 
-                await axios.post(`${API_URL}/save-permissions`, {
-                  user_id: user.id,
-                  permissions: apiPermissions,
-                });
+  //               await axios.post(`${API_URL}/save-permissions`, {
+  //                 user_id: user.id,
+  //                 permissions: apiPermissions,
+  //               });
 
-                triggerChainAnimation('spotify');
-                await axios.post(`${API_URL}/ingest-spotify`, { user_id: user.id });
+  //               triggerChainAnimation('spotify');
+  //               await axios.post(`${API_URL}/ingest-spotify`, { user_id: user.id });
 
-                // Clear OAuth in progress flag
-                await SecureStore.deleteItemAsync('oauth_in_progress');
+  //               // Clear OAuth in progress flag
+  //               await SecureStore.deleteItemAsync('oauth_in_progress');
 
-                setIntegrations(newPermissions);
-                setLoading((prev) => ({ ...prev, spotify: false }));
-                Alert.alert('SUCCESS', 'Spotify authorized and data uploaded successfully.');
-              } else {
-                console.log('[SPOTIFY] Polling timed out');
-                // Clear OAuth in progress flag on timeout
-                await SecureStore.deleteItemAsync('oauth_in_progress');
-                setLoading((prev) => ({ ...prev, spotify: false }));
-                Alert.alert('TIMEOUT', 'Authorization timed out. Please try again.');
-              }
-            }
-          } catch (err) {
-            console.error('Error polling auth status:', err);
-            // Clear OAuth in progress flag on error
-            await SecureStore.deleteItemAsync('oauth_in_progress');
-            if (pollAttempts >= maxAttempts) {
-              clearInterval(pollInterval);
-              delete pollingIntervalsRef.current['spotify'];
-              setLoading((prev) => ({ ...prev, spotify: false }));
-            }
-          }
-        }, 2000);
+  //               setIntegrations(newPermissions);
+  //               setLoading((prev) => ({ ...prev, spotify: false }));
+  //               Alert.alert('SUCCESS', 'Spotify authorized and data uploaded successfully.');
+  //             } else {
+  //               console.log('[SPOTIFY] Polling timed out');
+  //               // Clear OAuth in progress flag on timeout
+  //               await SecureStore.deleteItemAsync('oauth_in_progress');
+  //               setLoading((prev) => ({ ...prev, spotify: false }));
+  //               Alert.alert('TIMEOUT', 'Authorization timed out. Please try again.');
+  //             }
+  //           }
+  //         } catch (err) {
+  //           console.error('Error polling auth status:', err);
+  //           // Clear OAuth in progress flag on error
+  //           await SecureStore.deleteItemAsync('oauth_in_progress');
+  //           if (pollAttempts >= maxAttempts) {
+  //             clearInterval(pollInterval);
+  //             delete pollingIntervalsRef.current['spotify'];
+  //             setLoading((prev) => ({ ...prev, spotify: false }));
+  //           }
+  //         }
+  //       }, 2000);
 
-        pollingIntervalsRef.current['spotify'] = pollInterval;
-      } else {
-        Alert.alert('ERROR', 'Cannot open the authorization URL');
-        setLoading((prev) => ({ ...prev, spotify: false }));
-      }
+  //       pollingIntervalsRef.current['spotify'] = pollInterval;
+  //     } else {
+  //       Alert.alert('ERROR', 'Cannot open the authorization URL');
+  //       setLoading((prev) => ({ ...prev, spotify: false }));
+  //     }
 
-    } catch (error: any) {
-      console.error('[SPOTIFY] Error:', error);
-      // Clear OAuth in progress flag on error
-      await SecureStore.deleteItemAsync('oauth_in_progress');
-      Alert.alert('PROTOCOL ERROR', `Failed to connect Spotify: ${error?.message || 'Please try again.'}`);
-      setLoading((prev) => ({ ...prev, spotify: false }));
-    }
-  };
+  //   } catch (error: any) {
+  //     console.error('[SPOTIFY] Error:', error);
+  //     // Clear OAuth in progress flag on error
+  //     await SecureStore.deleteItemAsync('oauth_in_progress');
+  //     Alert.alert('PROTOCOL ERROR', `Failed to connect Spotify: ${error?.message || 'Please try again.'}`);
+  //     setLoading((prev) => ({ ...prev, spotify: false }));
+  //   }
+  // };
 
-  const handleGitHubConnect = async () => {
-    setLoading((prev) => ({ ...prev, github: true }));
-    try {
-      console.log('[GITHUB] Requesting authorization URL');
-      const response = await axios.get(`${API_URL}/github/authorize`, {
-        params: { user_id: user.id }
-      });
+  // GitHub disabled - only Apple Notes supported
+  // const handleGitHubConnect = async () => {
+  //   setLoading((prev) => ({ ...prev, github: true }));
+  //   try {
+  //     console.log('[GITHUB] Requesting authorization URL');
+  //     const response = await axios.get(`${API_URL}/github/authorize`, {
+  //       params: { user_id: user.id }
+  //     });
 
-      console.log('[GITHUB] Authorization response:', response.data);
-      const { authorization_url } = response.data;
+  //     console.log('[GITHUB] Authorization response:', response.data);
+  //     const { authorization_url } = response.data;
 
-      if (!authorization_url) {
-        throw new Error('No authorization URL in response');
-      }
+  //     if (!authorization_url) {
+  //       throw new Error('No authorization URL in response');
+  //     }
 
-      const supported = await Linking.canOpenURL(authorization_url);
-      if (supported) {
-        console.log('[GITHUB] Opening authorization URL');
-        // Set OAuth in progress flag to prevent auto-logout
-        await SecureStore.setItemAsync('oauth_in_progress', 'true');
-        await Linking.openURL(authorization_url);
+  //     const supported = await Linking.canOpenURL(authorization_url);
+  //     if (supported) {
+  //       console.log('[GITHUB] Opening authorization URL');
+  //       // Set OAuth in progress flag to prevent auto-logout
+  //       await SecureStore.setItemAsync('oauth_in_progress', 'true');
+  //       await Linking.openURL(authorization_url);
 
-        // Clear any existing github polling interval
-        if (pollingIntervalsRef.current['github']) {
-          clearInterval(pollingIntervalsRef.current['github']);
-          delete pollingIntervalsRef.current['github'];
-        }
+  //       // Clear any existing github polling interval
+  //       if (pollingIntervalsRef.current['github']) {
+  //         clearInterval(pollingIntervalsRef.current['github']);
+  //         delete pollingIntervalsRef.current['github'];
+  //       }
 
-        let pollAttempts = 0;
-        const maxAttempts = 150; // 5 minutes
+  //       let pollAttempts = 0;
+  //       const maxAttempts = 150; // 5 minutes
 
-        console.log('[GITHUB] Starting polling interval');
-        const pollInterval = setInterval(async () => {
-          pollAttempts++;
+  //       console.log('[GITHUB] Starting polling interval');
+  //       const pollInterval = setInterval(async () => {
+  //         pollAttempts++;
 
-          try {
-            const authResponse = await axios.get(`${API_URL}/auth/status/${user.id}`);
-            const status = authResponse.data.status || {};
-            console.log('[GITHUB POLL] Auth status:', status, 'Attempt:', pollAttempts);
+  //         try {
+  //           const authResponse = await axios.get(`${API_URL}/auth/status/${user.id}`);
+  //           const status = authResponse.data.status || {};
+  //           console.log('[GITHUB POLL] Auth status:', status, 'Attempt:', pollAttempts);
 
-            if (status.github || pollAttempts >= maxAttempts) {
-              clearInterval(pollInterval);
-              delete pollingIntervalsRef.current['github'];
-              // Clear OAuth in progress flag
-              await SecureStore.setItemAsync('oauth_in_progress', 'false');
+  //           if (status.github || pollAttempts >= maxAttempts) {
+  //             clearInterval(pollInterval);
+  //             delete pollingIntervalsRef.current['github'];
+  //             // Clear OAuth in progress flag
+  //             await SecureStore.setItemAsync('oauth_in_progress', 'false');
 
-              if (status.github) {
-                console.log('[GITHUB] Authorization detected, starting data upload');
-                const newPermissions = { ...integrations, github: true };
+  //             if (status.github) {
+  //               console.log('[GITHUB] Authorization detected, starting data upload');
+  //               const newPermissions = { ...integrations, github: true };
 
-                const apiPermissions = {
-                  notes: newPermissions.appleNotes,
-                  appleCalendar: newPermissions.appleCalendar,
-                  appleMusic: newPermissions.appleMusic,
-                  iosContacts: newPermissions.iosContacts,
-                  androidContacts: newPermissions.androidContacts,
-                  iosHealth: newPermissions.iosHealth,
-                  androidHealth: newPermissions.androidHealth,
-                  locationData: newPermissions.locationData,
-                  calendar: newPermissions.googleCalendar,
-                  email: newPermissions.gmail,
-                  googleDrive: newPermissions.googleDrive,
-                  mobileMessages: newPermissions.mobileMessages,
-                  spotify: newPermissions.spotify,
-                  youtube: newPermissions.youtube,
-                  github: newPermissions.github,
-                };
+  //               const apiPermissions = {
+  //                 notes: newPermissions.appleNotes,
+  //                 appleCalendar: newPermissions.appleCalendar,
+  //                 appleMusic: newPermissions.appleMusic,
+  //                 iosContacts: newPermissions.iosContacts,
+  //                 androidContacts: newPermissions.androidContacts,
+  //                 iosHealth: newPermissions.iosHealth,
+  //                 androidHealth: newPermissions.androidHealth,
+  //                 locationData: newPermissions.locationData,
+  //                 calendar: newPermissions.googleCalendar,
+  //                 email: newPermissions.gmail,
+  //                 googleDrive: newPermissions.googleDrive,
+  //                 mobileMessages: newPermissions.mobileMessages,
+  //                 spotify: newPermissions.spotify,
+  //                 youtube: newPermissions.youtube,
+  //                 github: newPermissions.github,
+  //               };
 
-                await axios.post(`${API_URL}/save-permissions`, {
-                  user_id: user.id,
-                  permissions: apiPermissions,
-                });
+  //               await axios.post(`${API_URL}/save-permissions`, {
+  //                 user_id: user.id,
+  //                 permissions: apiPermissions,
+  //               });
 
-                triggerChainAnimation('github');
-                await axios.post(`${API_URL}/ingest-github`, { user_id: user.id });
+  //               triggerChainAnimation('github');
+  //               await axios.post(`${API_URL}/ingest-github`, { user_id: user.id });
 
-                // Clear OAuth in progress flag
-                await SecureStore.deleteItemAsync('oauth_in_progress');
+  //               // Clear OAuth in progress flag
+  //               await SecureStore.deleteItemAsync('oauth_in_progress');
 
-                setIntegrations(newPermissions);
-                setLoading((prev) => ({ ...prev, github: false }));
-                Alert.alert('SUCCESS', 'GitHub authorized and data uploaded successfully.');
-              } else {
-                console.log('[GITHUB] Polling timed out');
-                // Clear OAuth in progress flag on timeout
-                await SecureStore.deleteItemAsync('oauth_in_progress');
-                setLoading((prev) => ({ ...prev, github: false }));
-                Alert.alert('TIMEOUT', 'Authorization timed out. Please try again.');
-              }
-            }
-          } catch (err) {
-            console.error('Error polling auth status:', err);
-            // Clear OAuth in progress flag on error
-            await SecureStore.deleteItemAsync('oauth_in_progress');
-            if (pollAttempts >= maxAttempts) {
-              clearInterval(pollInterval);
-              delete pollingIntervalsRef.current['github'];
-              setLoading((prev) => ({ ...prev, github: false }));
-            }
-          }
-        }, 2000);
+  //               setIntegrations(newPermissions);
+  //               setLoading((prev) => ({ ...prev, github: false }));
+  //               Alert.alert('SUCCESS', 'GitHub authorized and data uploaded successfully.');
+  //             } else {
+  //               console.log('[GITHUB] Polling timed out');
+  //               // Clear OAuth in progress flag on timeout
+  //               await SecureStore.deleteItemAsync('oauth_in_progress');
+  //               setLoading((prev) => ({ ...prev, github: false }));
+  //               Alert.alert('TIMEOUT', 'Authorization timed out. Please try again.');
+  //             }
+  //           }
+  //         } catch (err) {
+  //           console.error('Error polling auth status:', err);
+  //           // Clear OAuth in progress flag on error
+  //           await SecureStore.deleteItemAsync('oauth_in_progress');
+  //           if (pollAttempts >= maxAttempts) {
+  //             clearInterval(pollInterval);
+  //             delete pollingIntervalsRef.current['github'];
+  //             setLoading((prev) => ({ ...prev, github: false }));
+  //           }
+  //         }
+  //       }, 2000);
 
-        pollingIntervalsRef.current['github'] = pollInterval;
-      } else {
-        Alert.alert('ERROR', 'Cannot open the authorization URL');
-        setLoading((prev) => ({ ...prev, github: false }));
-      }
+  //       pollingIntervalsRef.current['github'] = pollInterval;
+  //     } else {
+  //       Alert.alert('ERROR', 'Cannot open the authorization URL');
+  //       setLoading((prev) => ({ ...prev, github: false }));
+  //     }
 
-    } catch (error: any) {
-      console.error('[GITHUB] Error:', error);
-      // Clear OAuth in progress flag on error
-      await SecureStore.deleteItemAsync('oauth_in_progress');
-      Alert.alert('PROTOCOL ERROR', `Failed to connect GitHub: ${error?.message || 'Please try again.'}`);
-      setLoading((prev) => ({ ...prev, github: false }));
-    }
-  };
+  //   } catch (error: any) {
+  //     console.error('[GITHUB] Error:', error);
+  //     // Clear OAuth in progress flag on error
+  //     await SecureStore.deleteItemAsync('oauth_in_progress');
+  //     Alert.alert('PROTOCOL ERROR', `Failed to connect GitHub: ${error?.message || 'Please try again.'}`);
+  //     setLoading((prev) => ({ ...prev, github: false }));
+  //   }
+  // };
 
-  const handleYouTubeConnect = async () => {
-    setLoading((prev) => ({ ...prev, youtube: true }));
-    try {
-      console.log('[YOUTUBE] Requesting authorization URL');
-      const response = await axios.get(`${API_URL}/auth/youtube`, {
-        params: { user_id: user.id }
-      });
+  // YouTube disabled - only Apple Notes supported
+  // const handleYouTubeConnect = async () => {
+  //   setLoading((prev) => ({ ...prev, youtube: true }));
+  //   try {
+  //     console.log('[YOUTUBE] Requesting authorization URL');
+  //     const response = await axios.get(`${API_URL}/auth/youtube`, {
+  //       params: { user_id: user.id }
+  //     });
 
-      console.log('[YOUTUBE] Authorization response:', response.data);
-      const { authorization_url } = response.data;
+  //     console.log('[YOUTUBE] Authorization response:', response.data);
+  //     const { authorization_url } = response.data;
 
-      if (!authorization_url) {
-        throw new Error('No authorization URL in response');
-      }
+  //     if (!authorization_url) {
+  //       throw new Error('No authorization URL in response');
+  //     }
 
-      // Set OAuth in progress flag to prevent auto-logout
-      await SecureStore.setItemAsync('oauth_in_progress', 'true');
+  //     // Set OAuth in progress flag to prevent auto-logout
+  //     await SecureStore.setItemAsync('oauth_in_progress', 'true');
 
-      const supported = await Linking.canOpenURL(authorization_url);
-      if (supported) {
-        console.log('[YOUTUBE] Opening authorization URL');
-        await Linking.openURL(authorization_url);
+  //     const supported = await Linking.canOpenURL(authorization_url);
+  //     if (supported) {
+  //       console.log('[YOUTUBE] Opening authorization URL');
+  //       await Linking.openURL(authorization_url);
         
-        // Clear any existing youtube polling interval
-        if (pollingIntervalsRef.current['youtube']) {
-          clearInterval(pollingIntervalsRef.current['youtube']);
-          delete pollingIntervalsRef.current['youtube'];
-        }
+  //       // Clear any existing youtube polling interval
+  //       if (pollingIntervalsRef.current['youtube']) {
+  //         clearInterval(pollingIntervalsRef.current['youtube']);
+  //         delete pollingIntervalsRef.current['youtube'];
+  //       }
         
-        let pollAttempts = 0;
-        const maxAttempts = 150;
+  //       let pollAttempts = 0;
+  //       const maxAttempts = 150;
 
-        console.log('[YOUTUBE] Starting polling interval');
-        const pollInterval = setInterval(async () => {
-          pollAttempts++;
+  //       console.log('[YOUTUBE] Starting polling interval');
+  //       const pollInterval = setInterval(async () => {
+  //         pollAttempts++;
 
-          try {
-            const authResponse = await axios.get(`${API_URL}/auth/status/${user.id}`);
-            const status = authResponse.data.status || {};
-            console.log('[YOUTUBE POLL] Auth status:', status, 'Attempt:', pollAttempts);
+  //         try {
+  //           const authResponse = await axios.get(`${API_URL}/auth/status/${user.id}`);
+  //           const status = authResponse.data.status || {};
+  //           console.log('[YOUTUBE POLL] Auth status:', status, 'Attempt:', pollAttempts);
 
-            if (status.youtube || pollAttempts >= maxAttempts) {
-              clearInterval(pollInterval);
-              delete pollingIntervalsRef.current['youtube'];
+  //           if (status.youtube || pollAttempts >= maxAttempts) {
+  //             clearInterval(pollInterval);
+  //             delete pollingIntervalsRef.current['youtube'];
 
-              if (status.youtube) {
-                console.log('[YOUTUBE] Authorization detected, starting data upload');
-                const newPermissions = { ...integrations, youtube: true };
+  //             if (status.youtube) {
+  //               console.log('[YOUTUBE] Authorization detected, starting data upload');
+  //               const newPermissions = { ...integrations, youtube: true };
 
-                const apiPermissions = {
-                  notes: newPermissions.appleNotes,
-                  appleCalendar: newPermissions.appleCalendar,
-                  appleMusic: newPermissions.appleMusic,
-                  iosContacts: newPermissions.iosContacts,
-                  androidContacts: newPermissions.androidContacts,
-                  iosHealth: newPermissions.iosHealth,
-                  androidHealth: newPermissions.androidHealth,
-                  locationData: newPermissions.locationData,
-                  calendar: newPermissions.googleCalendar,
-                  email: newPermissions.gmail,
-                  googleDrive: newPermissions.googleDrive,
-                  mobileMessages: newPermissions.mobileMessages,
-                  spotify: newPermissions.spotify,
-                  youtube: newPermissions.youtube,
-                };
+  //               const apiPermissions = {
+  //                 notes: newPermissions.appleNotes,
+  //                 appleCalendar: newPermissions.appleCalendar,
+  //                 appleMusic: newPermissions.appleMusic,
+  //                 iosContacts: newPermissions.iosContacts,
+  //                 androidContacts: newPermissions.androidContacts,
+  //                 iosHealth: newPermissions.iosHealth,
+  //                 androidHealth: newPermissions.androidHealth,
+  //                 locationData: newPermissions.locationData,
+  //                 calendar: newPermissions.googleCalendar,
+  //                 email: newPermissions.gmail,
+  //                 googleDrive: newPermissions.googleDrive,
+  //                 mobileMessages: newPermissions.mobileMessages,
+  //                 spotify: newPermissions.spotify,
+  //                 youtube: newPermissions.youtube,
+  //               };
 
-                await axios.post(`${API_URL}/save-permissions`, {
-                  user_id: user.id,
-                  permissions: apiPermissions,
-                });
+  //               await axios.post(`${API_URL}/save-permissions`, {
+  //                 user_id: user.id,
+  //                 permissions: apiPermissions,
+  //               });
 
-                triggerChainAnimation('youtube');
-                await axios.post(`${API_URL}/ingest-youtube`, { user_id: user.id });
+  //               triggerChainAnimation('youtube');
+  //               await axios.post(`${API_URL}/ingest-youtube`, { user_id: user.id });
 
-                // Clear OAuth in progress flag
-                await SecureStore.deleteItemAsync('oauth_in_progress');
+  //               // Clear OAuth in progress flag
+  //               await SecureStore.deleteItemAsync('oauth_in_progress');
 
-                setIntegrations(newPermissions);
-                setLoading((prev) => ({ ...prev, youtube: false }));
-                Alert.alert('SUCCESS', 'YouTube authorized and data uploaded successfully.');
-              } else {
-                console.log('[YOUTUBE] Polling timed out');
-                // Clear OAuth in progress flag
-                await SecureStore.deleteItemAsync('oauth_in_progress');
-                setLoading((prev) => ({ ...prev, youtube: false }));
-                Alert.alert('TIMEOUT', 'Authorization timed out. Please try again.');
-              }
-            }
-          } catch (err) {
-            console.error('Error polling auth status:', err);
-            // Clear OAuth in progress flag on error
-            await SecureStore.deleteItemAsync('oauth_in_progress');
-            if (pollAttempts >= maxAttempts) {
-              clearInterval(pollInterval);
-              delete pollingIntervalsRef.current['youtube'];
-              setLoading((prev) => ({ ...prev, youtube: false }));
-            }
-          }
-        }, 2000);
+  //               setIntegrations(newPermissions);
+  //               setLoading((prev) => ({ ...prev, youtube: false }));
+  //               Alert.alert('SUCCESS', 'YouTube authorized and data uploaded successfully.');
+  //             } else {
+  //               console.log('[YOUTUBE] Polling timed out');
+  //               // Clear OAuth in progress flag
+  //               await SecureStore.deleteItemAsync('oauth_in_progress');
+  //               setLoading((prev) => ({ ...prev, youtube: false }));
+  //               Alert.alert('TIMEOUT', 'Authorization timed out. Please try again.');
+  //             }
+  //           }
+  //         } catch (err) {
+  //           console.error('Error polling auth status:', err);
+  //           // Clear OAuth in progress flag on error
+  //           await SecureStore.deleteItemAsync('oauth_in_progress');
+  //           if (pollAttempts >= maxAttempts) {
+  //             clearInterval(pollInterval);
+  //             delete pollingIntervalsRef.current['youtube'];
+  //             setLoading((prev) => ({ ...prev, youtube: false }));
+  //           }
+  //         }
+  //       }, 2000);
         
-        pollingIntervalsRef.current['youtube'] = pollInterval;
-      } else {
-        Alert.alert('ERROR', 'Cannot open the authorization URL');
-        setLoading((prev) => ({ ...prev, youtube: false }));
-      }
+  //       pollingIntervalsRef.current['youtube'] = pollInterval;
+  //     } else {
+  //       Alert.alert('ERROR', 'Cannot open the authorization URL');
+  //       setLoading((prev) => ({ ...prev, youtube: false }));
+  //     }
 
-    } catch (error: any) {
-      console.error('[YOUTUBE] Error:', error);
-      // Clear OAuth in progress flag on error
-      await SecureStore.deleteItemAsync('oauth_in_progress');
-      Alert.alert('PROTOCOL ERROR', `Failed to connect YouTube: ${error?.message || 'Please try again.'}`);
-      setLoading((prev) => ({ ...prev, youtube: false }));
-    }
-  };
+  //   } catch (error: any) {
+  //     console.error('[YOUTUBE] Error:', error);
+  //     // Clear OAuth in progress flag on error
+  //     await SecureStore.deleteItemAsync('oauth_in_progress');
+  //     Alert.alert('PROTOCOL ERROR', `Failed to connect YouTube: ${error?.message || 'Please try again.'}`);
+  //     setLoading((prev) => ({ ...prev, youtube: false }));
+  //   }
+  // };
 
-  const handleZoomConnect = async () => {
-    setLoading((prev) => ({ ...prev, zoom: true }));
-    try {
-      console.log('[ZOOM] Requesting authorization URL');
-      const response = await axios.get(`${API_URL}/zoom/authorize`, {
-        params: { user_id: user.id }
-      });
+  // Zoom disabled - only Apple Notes supported
+  // const handleZoomConnect = async () => {
+  //   setLoading((prev) => ({ ...prev, zoom: true }));
+  //   try {
+  //     console.log('[ZOOM] Requesting authorization URL');
+  //     const response = await axios.get(`${API_URL}/zoom/authorize`, {
+  //       params: { user_id: user.id }
+  //     });
 
-      console.log('[ZOOM] Authorization response:', response.data);
-      const { authorization_url } = response.data;
+  //     console.log('[ZOOM] Authorization response:', response.data);
+  //     const { authorization_url } = response.data;
 
-      if (!authorization_url) {
-        throw new Error('No authorization URL in response');
-      }
+  //     if (!authorization_url) {
+  //       throw new Error('No authorization URL in response');
+  //     }
 
-      const supported = await Linking.canOpenURL(authorization_url);
-      if (supported) {
-        console.log('[ZOOM] Opening authorization URL');
-        // Set OAuth in progress flag to prevent auto-logout
-        await SecureStore.setItemAsync('oauth_in_progress', 'true');
-        await Linking.openURL(authorization_url);
+  //     const supported = await Linking.canOpenURL(authorization_url);
+  //     if (supported) {
+  //       console.log('[ZOOM] Opening authorization URL');
+  //       // Set OAuth in progress flag to prevent auto-logout
+  //       await SecureStore.setItemAsync('oauth_in_progress', 'true');
+  //       await Linking.openURL(authorization_url);
 
-        // Clear any existing zoom polling interval
-        if (pollingIntervalsRef.current['zoom']) {
-          clearInterval(pollingIntervalsRef.current['zoom']);
-          delete pollingIntervalsRef.current['zoom'];
-        }
+  //       // Clear any existing zoom polling interval
+  //       if (pollingIntervalsRef.current['zoom']) {
+  //         clearInterval(pollingIntervalsRef.current['zoom']);
+  //         delete pollingIntervalsRef.current['zoom'];
+  //       }
 
-        let pollAttempts = 0;
-        const maxAttempts = 150; // 5 minutes
+  //       let pollAttempts = 0;
+  //       const maxAttempts = 150; // 5 minutes
 
-        console.log('[ZOOM] Starting polling interval');
-        const pollInterval = setInterval(async () => {
-          pollAttempts++;
+  //       console.log('[ZOOM] Starting polling interval');
+  //       const pollInterval = setInterval(async () => {
+  //         pollAttempts++;
 
-          try {
-            const authResponse = await axios.get(`${API_URL}/auth/status/${user.id}`);
-            const status = authResponse.data.status || {};
-            console.log('[ZOOM POLL] Auth status:', status, 'Attempt:', pollAttempts);
+  //         try {
+  //           const authResponse = await axios.get(`${API_URL}/auth/status/${user.id}`);
+  //           const status = authResponse.data.status || {};
+  //           console.log('[ZOOM POLL] Auth status:', status, 'Attempt:', pollAttempts);
 
-            if (status.zoom || pollAttempts >= maxAttempts) {
-              clearInterval(pollInterval);
-              delete pollingIntervalsRef.current['zoom'];
-              // Clear OAuth in progress flag
-              await SecureStore.setItemAsync('oauth_in_progress', 'false');
+  //           if (status.zoom || pollAttempts >= maxAttempts) {
+  //             clearInterval(pollInterval);
+  //             delete pollingIntervalsRef.current['zoom'];
+  //             // Clear OAuth in progress flag
+  //             await SecureStore.setItemAsync('oauth_in_progress', 'false');
 
-              if (status.zoom) {
-                console.log('[ZOOM] Authorization detected, starting data upload');
-                const newPermissions = { ...integrations, zoom: true };
+  //             if (status.zoom) {
+  //               console.log('[ZOOM] Authorization detected, starting data upload');
+  //               const newPermissions = { ...integrations, zoom: true };
 
-                const apiPermissions = {
-                  notes: newPermissions.appleNotes,
-                  appleCalendar: newPermissions.appleCalendar,
-                  appleMusic: newPermissions.appleMusic,
-                  iosContacts: newPermissions.iosContacts,
-                  androidContacts: newPermissions.androidContacts,
-                  iosHealth: newPermissions.iosHealth,
-                  androidHealth: newPermissions.androidHealth,
-                  locationData: newPermissions.locationData,
-                  calendar: newPermissions.googleCalendar,
-                  email: newPermissions.gmail,
-                  googleDrive: newPermissions.googleDrive,
-                  mobileMessages: newPermissions.mobileMessages,
-                  spotify: newPermissions.spotify,
-                  youtube: newPermissions.youtube,
-                  zoom: newPermissions.zoom,
-                };
+  //               const apiPermissions = {
+  //                 notes: newPermissions.appleNotes,
+  //                 appleCalendar: newPermissions.appleCalendar,
+  //                 appleMusic: newPermissions.appleMusic,
+  //                 iosContacts: newPermissions.iosContacts,
+  //                 androidContacts: newPermissions.androidContacts,
+  //                 iosHealth: newPermissions.iosHealth,
+  //                 androidHealth: newPermissions.androidHealth,
+  //                 locationData: newPermissions.locationData,
+  //                 calendar: newPermissions.googleCalendar,
+  //                 email: newPermissions.gmail,
+  //                 googleDrive: newPermissions.googleDrive,
+  //                 mobileMessages: newPermissions.mobileMessages,
+  //                 spotify: newPermissions.spotify,
+  //                 youtube: newPermissions.youtube,
+  //                 zoom: newPermissions.zoom,
+  //               };
 
-                await axios.post(`${API_URL}/save-permissions`, {
-                  user_id: user.id,
-                  permissions: apiPermissions,
-                });
+  //               await axios.post(`${API_URL}/save-permissions`, {
+  //                 user_id: user.id,
+  //                 permissions: apiPermissions,
+  //               });
 
-                triggerChainAnimation('zoom');
-                await axios.post(`${API_URL}/ingest-zoom`, { user_id: user.id });
+  //               triggerChainAnimation('zoom');
+  //               await axios.post(`${API_URL}/ingest-zoom`, { user_id: user.id });
 
-                // Clear OAuth in progress flag
-                await SecureStore.deleteItemAsync('oauth_in_progress');
+  //               // Clear OAuth in progress flag
+  //               await SecureStore.deleteItemAsync('oauth_in_progress');
 
-                setIntegrations(newPermissions);
-                setLoading((prev) => ({ ...prev, zoom: false }));
-                Alert.alert('SUCCESS', 'Zoom authorized and data uploaded successfully.');
-              } else {
-                console.log('[ZOOM] Polling timed out');
-                // Clear OAuth in progress flag on timeout
-                await SecureStore.deleteItemAsync('oauth_in_progress');
-                setLoading((prev) => ({ ...prev, zoom: false }));
-                Alert.alert('TIMEOUT', 'Authorization timed out. Please try again.');
-              }
-            }
-          } catch (err) {
-            console.error('Error polling auth status:', err);
-            // Clear OAuth in progress flag on error
-            await SecureStore.deleteItemAsync('oauth_in_progress');
-            if (pollAttempts >= maxAttempts) {
-              clearInterval(pollInterval);
-              delete pollingIntervalsRef.current['zoom'];
-              setLoading((prev) => ({ ...prev, zoom: false }));
-            }
-          }
-        }, 2000);
+  //               setIntegrations(newPermissions);
+  //               setLoading((prev) => ({ ...prev, zoom: false }));
+  //               Alert.alert('SUCCESS', 'Zoom authorized and data uploaded successfully.');
+  //             } else {
+  //               console.log('[ZOOM] Polling timed out');
+  //               // Clear OAuth in progress flag on timeout
+  //               await SecureStore.deleteItemAsync('oauth_in_progress');
+  //               setLoading((prev) => ({ ...prev, zoom: false }));
+  //               Alert.alert('TIMEOUT', 'Authorization timed out. Please try again.');
+  //             }
+  //           }
+  //         } catch (err) {
+  //           console.error('Error polling auth status:', err);
+  //           // Clear OAuth in progress flag on error
+  //           await SecureStore.deleteItemAsync('oauth_in_progress');
+  //           if (pollAttempts >= maxAttempts) {
+  //             clearInterval(pollInterval);
+  //             delete pollingIntervalsRef.current['zoom'];
+  //             setLoading((prev) => ({ ...prev, zoom: false }));
+  //           }
+  //         }
+  //       }, 2000);
 
-        pollingIntervalsRef.current['zoom'] = pollInterval;
-      } else {
-        Alert.alert('ERROR', 'Cannot open the authorization URL');
-        setLoading((prev) => ({ ...prev, zoom: false }));
-      }
+  //       pollingIntervalsRef.current['zoom'] = pollInterval;
+  //     } else {
+  //       Alert.alert('ERROR', 'Cannot open the authorization URL');
+  //       setLoading((prev) => ({ ...prev, zoom: false }));
+  //     }
 
-    } catch (error: any) {
-      console.error('[ZOOM] Error:', error);
-      // Clear OAuth in progress flag on error
-      await SecureStore.deleteItemAsync('oauth_in_progress');
-      Alert.alert('PROTOCOL ERROR', `Failed to connect Zoom: ${error?.message || 'Please try again.'}`);
-      setLoading((prev) => ({ ...prev, zoom: false }));
-    }
-  };
+  //   } catch (error: any) {
+  //     console.error('[ZOOM] Error:', error);
+  //     // Clear OAuth in progress flag on error
+  //     await SecureStore.deleteItemAsync('oauth_in_progress');
+  //     Alert.alert('PROTOCOL ERROR', `Failed to connect Zoom: ${error?.message || 'Please try again.'}`);
+  //     setLoading((prev) => ({ ...prev, zoom: false }));
+  //   }
+  // };
 
-  const handleNotionConnect = async () => {
-    setLoading((prev) => ({ ...prev, notion: true }));
-    try {
-      console.log('[NOTION] Requesting authorization URL');
-      const response = await axios.get(`${API_URL}/notion/authorize`, {
-        params: { user_id: user.id }
-      });
+  // Notion disabled - only Apple Notes supported
+  // const handleNotionConnect = async () => {
+  //   setLoading((prev) => ({ ...prev, notion: true }));
+  //   try {
+  //     console.log('[NOTION] Requesting authorization URL');
+  //     const response = await axios.get(`${API_URL}/notion/authorize`, {
+  //       params: { user_id: user.id }
+  //     });
 
-      console.log('[NOTION] Authorization response:', response.data);
-      const { authorization_url } = response.data;
+  //     console.log('[NOTION] Authorization response:', response.data);
+  //     const { authorization_url } = response.data;
 
-      if (!authorization_url) {
-        throw new Error('No authorization URL in response');
-      }
+  //     if (!authorization_url) {
+  //       throw new Error('No authorization URL in response');
+  //     }
 
-      const supported = await Linking.canOpenURL(authorization_url);
-      if (supported) {
-        console.log('[NOTION] Opening authorization URL');
-        // Set OAuth in progress flag to prevent auto-logout
-        await SecureStore.setItemAsync('oauth_in_progress', 'true');
-        await Linking.openURL(authorization_url);
+  //     const supported = await Linking.canOpenURL(authorization_url);
+  //     if (supported) {
+  //       console.log('[NOTION] Opening authorization URL');
+  //       // Set OAuth in progress flag to prevent auto-logout
+  //       await SecureStore.setItemAsync('oauth_in_progress', 'true');
+  //       await Linking.openURL(authorization_url);
 
-        // Clear any existing notion polling interval
-        if (pollingIntervalsRef.current['notion']) {
-          clearInterval(pollingIntervalsRef.current['notion']);
-          delete pollingIntervalsRef.current['notion'];
-        }
+  //       // Clear any existing notion polling interval
+  //       if (pollingIntervalsRef.current['notion']) {
+  //         clearInterval(pollingIntervalsRef.current['notion']);
+  //         delete pollingIntervalsRef.current['notion'];
+  //       }
 
-        let pollAttempts = 0;
-        const maxAttempts = 150; // 5 minutes
+  //       let pollAttempts = 0;
+  //       const maxAttempts = 150; // 5 minutes
 
-        console.log('[NOTION] Starting polling interval');
-        const pollInterval = setInterval(async () => {
-          pollAttempts++;
+  //       console.log('[NOTION] Starting polling interval');
+  //       const pollInterval = setInterval(async () => {
+  //         pollAttempts++;
 
-          try {
-            const authResponse = await axios.get(`${API_URL}/auth/status/${user.id}`);
-            const status = authResponse.data.status || {};
-            console.log('[NOTION POLL] Auth status:', status, 'Attempt:', pollAttempts);
+  //         try {
+  //           const authResponse = await axios.get(`${API_URL}/auth/status/${user.id}`);
+  //           const status = authResponse.data.status || {};
+  //           console.log('[NOTION POLL] Auth status:', status, 'Attempt:', pollAttempts);
 
-            if (status.notion || pollAttempts >= maxAttempts) {
-              clearInterval(pollInterval);
-              delete pollingIntervalsRef.current['notion'];
-              // Clear OAuth in progress flag
-              await SecureStore.setItemAsync('oauth_in_progress', 'false');
+  //           if (status.notion || pollAttempts >= maxAttempts) {
+  //             clearInterval(pollInterval);
+  //             delete pollingIntervalsRef.current['notion'];
+  //             // Clear OAuth in progress flag
+  //             await SecureStore.setItemAsync('oauth_in_progress', 'false');
 
-              if (status.notion) {
-                console.log('[NOTION] Authorization detected, starting data upload');
-                const newPermissions = { ...integrations, notion: true };
+  //             if (status.notion) {
+  //               console.log('[NOTION] Authorization detected, starting data upload');
+  //               const newPermissions = { ...integrations, notion: true };
 
-                const apiPermissions = {
-                  notes: newPermissions.appleNotes,
-                  appleCalendar: newPermissions.appleCalendar,
-                  appleMusic: newPermissions.appleMusic,
-                  iosContacts: newPermissions.iosContacts,
-                  androidContacts: newPermissions.androidContacts,
-                  iosHealth: newPermissions.iosHealth,
-                  androidHealth: newPermissions.androidHealth,
-                  locationData: newPermissions.locationData,
-                  calendar: newPermissions.googleCalendar,
-                  email: newPermissions.gmail,
-                  googleDrive: newPermissions.googleDrive,
-                  mobileMessages: newPermissions.mobileMessages,
-                  spotify: newPermissions.spotify,
-                  youtube: newPermissions.youtube,
-                  notion: newPermissions.notion,
-                };
+  //               const apiPermissions = {
+  //                 notes: newPermissions.appleNotes,
+  //                 appleCalendar: newPermissions.appleCalendar,
+  //                 appleMusic: newPermissions.appleMusic,
+  //                 iosContacts: newPermissions.iosContacts,
+  //                 androidContacts: newPermissions.androidContacts,
+  //                 iosHealth: newPermissions.iosHealth,
+  //                 androidHealth: newPermissions.androidHealth,
+  //                 locationData: newPermissions.locationData,
+  //                 calendar: newPermissions.googleCalendar,
+  //                 email: newPermissions.gmail,
+  //                 googleDrive: newPermissions.googleDrive,
+  //                 mobileMessages: newPermissions.mobileMessages,
+  //                 spotify: newPermissions.spotify,
+  //                 youtube: newPermissions.youtube,
+  //                 notion: newPermissions.notion,
+  //               };
 
-                await axios.post(`${API_URL}/save-permissions`, {
-                  user_id: user.id,
-                  permissions: apiPermissions,
-                });
+  //               await axios.post(`${API_URL}/save-permissions`, {
+  //                 user_id: user.id,
+  //                 permissions: apiPermissions,
+  //               });
 
-                triggerChainAnimation('notion');
-                await axios.post(`${API_URL}/ingest-notion`, { user_id: user.id });
+  //               triggerChainAnimation('notion');
+  //               await axios.post(`${API_URL}/ingest-notion`, { user_id: user.id });
 
-                // Clear OAuth in progress flag
-                await SecureStore.deleteItemAsync('oauth_in_progress');
+  //               // Clear OAuth in progress flag
+  //               await SecureStore.deleteItemAsync('oauth_in_progress');
 
-                setIntegrations(newPermissions);
-                setLoading((prev) => ({ ...prev, notion: false }));
-                Alert.alert('SUCCESS', 'Notion authorized and data uploaded successfully.');
-              } else {
-                console.log('[NOTION] Polling timed out');
-                // Clear OAuth in progress flag on timeout
-                await SecureStore.deleteItemAsync('oauth_in_progress');
-                setLoading((prev) => ({ ...prev, notion: false }));
-                Alert.alert('TIMEOUT', 'Authorization timed out. Please try again.');
-              }
-            }
-          } catch (err) {
-            console.error('Error polling auth status:', err);
-            // Clear OAuth in progress flag on error
-            await SecureStore.deleteItemAsync('oauth_in_progress');
-            if (pollAttempts >= maxAttempts) {
-              clearInterval(pollInterval);
-              delete pollingIntervalsRef.current['notion'];
-              setLoading((prev) => ({ ...prev, notion: false }));
-            }
-          }
-        }, 2000);
+  //               setIntegrations(newPermissions);
+  //               setLoading((prev) => ({ ...prev, notion: false }));
+  //               Alert.alert('SUCCESS', 'Notion authorized and data uploaded successfully.');
+  //             } else {
+  //               console.log('[NOTION] Polling timed out');
+  //               // Clear OAuth in progress flag on timeout
+  //               await SecureStore.deleteItemAsync('oauth_in_progress');
+  //               setLoading((prev) => ({ ...prev, notion: false }));
+  //               Alert.alert('TIMEOUT', 'Authorization timed out. Please try again.');
+  //             }
+  //           }
+  //         } catch (err) {
+  //           console.error('Error polling auth status:', err);
+  //           // Clear OAuth in progress flag on error
+  //           await SecureStore.deleteItemAsync('oauth_in_progress');
+  //           if (pollAttempts >= maxAttempts) {
+  //             clearInterval(pollInterval);
+  //             delete pollingIntervalsRef.current['notion'];
+  //             setLoading((prev) => ({ ...prev, notion: false }));
+  //           }
+  //         }
+  //       }, 2000);
 
-        pollingIntervalsRef.current['notion'] = pollInterval;
-      } else {
-        Alert.alert('ERROR', 'Cannot open the authorization URL');
-        setLoading((prev) => ({ ...prev, notion: false }));
-      }
+  //       pollingIntervalsRef.current['notion'] = pollInterval;
+  //     } else {
+  //       Alert.alert('ERROR', 'Cannot open the authorization URL');
+  //       setLoading((prev) => ({ ...prev, notion: false }));
+  //     }
 
-    } catch (error: any) {
-      console.error('[NOTION] Error:', error);
-      // Clear OAuth in progress flag on error
-      await SecureStore.deleteItemAsync('oauth_in_progress');
-      Alert.alert('PROTOCOL ERROR', `Failed to connect Notion: ${error?.message || 'Please try again.'}`);
-      setLoading((prev) => ({ ...prev, notion: false }));
-    }
-  };
+  //   } catch (error: any) {
+  //     console.error('[NOTION] Error:', error);
+  //     // Clear OAuth in progress flag on error
+  //     await SecureStore.deleteItemAsync('oauth_in_progress');
+  //     Alert.alert('PROTOCOL ERROR', `Failed to connect Notion: ${error?.message || 'Please try again.'}`);
+  //     setLoading((prev) => ({ ...prev, notion: false }));
+  //   }
+  // };
 
-  const connectAppleCalendar = async (email: string, password: string) => {
-    setLoading((prev) => ({ ...prev, appleCalendar: true }));
-    try {
-      const newPermissions = { ...integrations, appleCalendar: true };
+  // Apple Calendar disabled - only Apple Notes supported
+  // const connectAppleCalendar = async (email: string, password: string) => {
+  //   setLoading((prev) => ({ ...prev, appleCalendar: true }));
+  //   try {
+  //     const newPermissions = { ...integrations, appleCalendar: true };
 
-      const apiPermissions = {
-        notes: newPermissions.appleNotes,
-        appleCalendar: newPermissions.appleCalendar,
-        appleMusic: newPermissions.appleMusic,
-        iosContacts: newPermissions.iosContacts,
-        androidContacts: newPermissions.androidContacts,
-        iosHealth: newPermissions.iosHealth,
-        androidHealth: newPermissions.androidHealth,
-        locationData: newPermissions.locationData,
-        calendar: newPermissions.googleCalendar,
-        email: newPermissions.gmail,
-        googleDrive: newPermissions.googleDrive,
-        mobileMessages: newPermissions.mobileMessages,
-        spotify: newPermissions.spotify,
-      };
+  //     const apiPermissions = {
+  //       notes: newPermissions.appleNotes,
+  //       appleCalendar: newPermissions.appleCalendar,
+  //       appleMusic: newPermissions.appleMusic,
+  //       iosContacts: newPermissions.iosContacts,
+  //       androidContacts: newPermissions.androidContacts,
+  //       iosHealth: newPermissions.iosHealth,
+  //       androidHealth: newPermissions.androidHealth,
+  //       locationData: newPermissions.locationData,
+  //       calendar: newPermissions.googleCalendar,
+  //       email: newPermissions.gmail,
+  //       googleDrive: newPermissions.googleDrive,
+  //       mobileMessages: newPermissions.mobileMessages,
+  //       spotify: newPermissions.spotify,
+  //     };
 
-      await axios.post(`${API_URL}/save-permissions`, {
-        user_id: user.id,
-        permissions: apiPermissions,
-      });
+  //     await axios.post(`${API_URL}/save-permissions`, {
+  //       user_id: user.id,
+  //       permissions: apiPermissions,
+  //     });
 
-      triggerChainAnimation('appleCalendar');
+  //     triggerChainAnimation('appleCalendar');
 
-      await axios.post(`${API_URL}/ingest-apple-calendar`, {
-        user_id: user.id,
-        apple_calendar_email: email,
-        apple_calendar_password: password,
-      });
+  //     await axios.post(`${API_URL}/ingest-apple-calendar`, {
+  //       user_id: user.id,
+  //       apple_calendar_email: email,
+  //       apple_calendar_password: password,
+  //     });
 
-      setIntegrations(newPermissions);
-      Alert.alert('SUCCESS', 'Apple Calendar connected successfully.');
-    } catch (error) {
-      Alert.alert('PROTOCOL ERROR', 'Failed to connect Apple Calendar. Please check your credentials.');
-    } finally {
-      setLoading((prev) => ({ ...prev, appleCalendar: false }));
-    }
-  };
+  //     setIntegrations(newPermissions);
+  //     Alert.alert('SUCCESS', 'Apple Calendar connected successfully.');
+  //   } catch (error) {
+  //     Alert.alert('PROTOCOL ERROR', 'Failed to connect Apple Calendar. Please check your credentials.');
+  //   } finally {
+  //     setLoading((prev) => ({ ...prev, appleCalendar: false }));
+  //   }
+  // };
 
   const toggleIntegration = async (key: string) => {
-    if (key === 'appleMusic' && !integrations.appleMusic) {
-      await handleAppleMusicConnect();
-      return;
-    }
+    // All non-Apple Notes data sources disabled
+    // if (key === 'appleMusic' && !integrations.appleMusic) {
+    //   await handleAppleMusicConnect();
+    //   return;
+    // }
 
-    if (key === 'spotify' && !integrations.spotify) {
-      await handleSpotifyConnect();
-      return;
-    }
+    // if (key === 'spotify' && !integrations.spotify) {
+    //   await handleSpotifyConnect();
+    //   return;
+    // }
 
-    if (key === 'youtube' && !integrations.youtube) {
-      await handleYouTubeConnect();
-      return;
-    }
+    // if (key === 'youtube' && !integrations.youtube) {
+    //   await handleYouTubeConnect();
+    //   return;
+    // }
 
-    if (key === 'github' && !integrations.github) {
-      await handleGitHubConnect();
-      return;
-    }
+    // if (key === 'github' && !integrations.github) {
+    //   await handleGitHubConnect();
+    //   return;
+    // }
 
-    if (key === 'zoom' && !integrations.zoom) {
-      await handleZoomConnect();
-      return;
-    }
+    // if (key === 'zoom' && !integrations.zoom) {
+    //   await handleZoomConnect();
+    //   return;
+    // }
 
-    if (key === 'notion' && !integrations.notion) {
-      await handleNotionConnect();
-      return;
-    }
+    // if (key === 'notion' && !integrations.notion) {
+    //   await handleNotionConnect();
+    //   return;
+    // }
 
     if (key === 'mobileMessages') {
       Alert.alert('NOT AVAILABLE', 'Mobile messages integration requires native modules not available in Expo Go');
@@ -1027,49 +1038,50 @@ export const useIntegrations = (user: any) => {
       return;
     }
 
-    if (key === 'appleCalendar' && !integrations.appleCalendar) {
-      Alert.alert(
-        'APPLE CALENDAR CREDENTIALS',
-        'Enter your Apple ID and App-Specific Password for iCloud Calendar access.\n\nGenerate an App-Specific Password at: appleid.apple.com',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Connect',
-            onPress: () => {
-              Alert.prompt(
-                'Apple ID Email',
-                'Enter your Apple ID email',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Next',
-                    onPress: async (email?: string) => {
-                      if (!email) return;
-                      Alert.prompt(
-                        'App-Specific Password',
-                        'Enter your iCloud App-Specific Password',
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Connect',
-                            onPress: async (password?: string) => {
-                              if (!password) return;
-                              await connectAppleCalendar(email, password);
-                            }
-                          }
-                        ],
-                        'secure-text'
-                      );
-                    }
-                  }
-                ]
-              );
-            }
-          }
-        ]
-      );
-      return;
-    }
+    // Apple Calendar disabled - only Apple Notes supported
+    // if (key === 'appleCalendar' && !integrations.appleCalendar) {
+    //   Alert.alert(
+    //     'APPLE CALENDAR CREDENTIALS',
+    //     'Enter your Apple ID and App-Specific Password for iCloud Calendar access.\n\nGenerate an App-Specific Password at: appleid.apple.com',
+    //     [
+    //       { text: 'Cancel', style: 'cancel' },
+    //       {
+    //         text: 'Connect',
+    //         onPress: () => {
+    //           Alert.prompt(
+    //             'Apple ID Email',
+    //             'Enter your Apple ID email',
+    //             [
+    //               { text: 'Cancel', style: 'cancel' },
+    //               {
+    //                 text: 'Next',
+    //                 onPress: async (email?: string) => {
+    //                   if (!email) return;
+    //                   Alert.prompt(
+    //                     'App-Specific Password',
+    //                     'Enter your iCloud App-Specific Password',
+    //                     [
+    //                       { text: 'Cancel', style: 'cancel' },
+    //                       {
+    //                         text: 'Connect',
+    //                         onPress: async (password?: string) => {
+    //                           if (!password) return;
+    //                           await connectAppleCalendar(email, password);
+    //                         }
+    //                       }
+    //                     ],
+    //                     'secure-text'
+    //                   );
+    //                 }
+    //               }
+    //             ]
+    //           );
+    //         }
+    //       }
+    //     ]
+    //   );
+    //   return;
+    // }
 
     const isConnecting = !integrations[key as keyof typeof integrations];
 
@@ -1089,16 +1101,17 @@ export const useIntegrations = (user: any) => {
 
                 const apiPermissions = {
                   notes: newPermissions.appleNotes,
-                  appleCalendar: newPermissions.appleCalendar,
-                  appleMusic: newPermissions.appleMusic,
-                  iosContacts: newPermissions.iosContacts,
-                  androidContacts: newPermissions.androidContacts,
-                  locationData: newPermissions.locationData,
-                  calendar: newPermissions.googleCalendar,
-                  email: newPermissions.gmail,
-                  googleDrive: newPermissions.googleDrive,
-                  mobileMessages: newPermissions.mobileMessages,
-                  spotify: newPermissions.spotify,
+                  // All other data sources disabled - only Apple Notes supported
+                  appleCalendar: false,
+                  appleMusic: false,
+                  iosContacts: false,
+                  androidContacts: false,
+                  locationData: false,
+                  calendar: false,
+                  email: false,
+                  googleDrive: false,
+                  mobileMessages: false,
+                  spotify: false,
                 };
 
                 await axios.post(`${API_URL}/save-permissions`, {
@@ -1109,13 +1122,14 @@ export const useIntegrations = (user: any) => {
                 triggerChainAnimation(key);
 
                 if (key === 'appleNotes') await axios.post(`${API_URL}/ingest-apple-notes`, { user_id: user.id });
-                else if (key === 'appleMusic') await axios.post(`${API_URL}/ingest-apple-music`, { user_id: user.id });
-                else if (key === 'iosContacts') await axios.post(`${API_URL}/ingest-ios-contacts`, { user_id: user.id, platform: 'ios' });
-                else if (key === 'androidContacts') await axios.post(`${API_URL}/ingest-android-contacts`, { user_id: user.id, platform: 'android' });
-                else if (key === 'iosHealth') await handleHealthDataIngest('ios');
-                else if (key === 'androidHealth') await handleHealthDataIngest('android');
-                else if (key === 'locationData') await handleLocationDataIngest();
-                else if (key === 'spotify') await axios.post(`${API_URL}/ingest-spotify`, { user_id: user.id });
+                // All other data sources disabled - only Apple Notes supported
+                // else if (key === 'appleMusic') await axios.post(`${API_URL}/ingest-apple-music`, { user_id: user.id });
+                // else if (key === 'iosContacts') await axios.post(`${API_URL}/ingest-ios-contacts`, { user_id: user.id, platform: 'ios' });
+                // else if (key === 'androidContacts') await axios.post(`${API_URL}/ingest-android-contacts`, { user_id: user.id, platform: 'android' });
+                // else if (key === 'iosHealth') await handleHealthDataIngest('ios');
+                // else if (key === 'androidHealth') await handleHealthDataIngest('android');
+                // else if (key === 'locationData') await handleLocationDataIngest();
+                // else if (key === 'spotify') await axios.post(`${API_URL}/ingest-spotify`, { user_id: user.id });
                 else if (['googleCalendar', 'gmail', 'googleDrive', 'youtube'].includes(key)) {
                   const serviceMap: Record<string, string> = {
                     googleCalendar: 'calendar',
@@ -1181,19 +1195,20 @@ export const useIntegrations = (user: any) => {
                                       if (currentStatus[service]) {
                                         const apiPermissions = {
                                           notes: newPermissions.appleNotes,
-                                          appleCalendar: newPermissions.appleCalendar,
-                                          appleMusic: newPermissions.appleMusic,
-                                          iosContacts: newPermissions.iosContacts,
-                                          androidContacts: newPermissions.androidContacts,
-                                          iosHealth: newPermissions.iosHealth,
-                                          androidHealth: newPermissions.androidHealth,
-                                          locationData: newPermissions.locationData,
-                                          calendar: newPermissions.googleCalendar,
-                                          email: newPermissions.gmail,
-                                          googleDrive: newPermissions.googleDrive,
-                                          mobileMessages: newPermissions.mobileMessages,
-                                          spotify: newPermissions.spotify,
-                                          youtube: newPermissions.youtube,
+                                          // All other data sources disabled - only Apple Notes supported
+                                          appleCalendar: false,
+                                          appleMusic: false,
+                                          iosContacts: false,
+                                          androidContacts: false,
+                                          iosHealth: false,
+                                          androidHealth: false,
+                                          locationData: false,
+                                          calendar: false,
+                                          email: false,
+                                          googleDrive: false,
+                                          mobileMessages: false,
+                                          spotify: false,
+                                          youtube: false,
                                         };
 
                                         await axios.post(`${API_URL}/save-permissions`, {

@@ -1,0 +1,76 @@
+{
+  "expo": {
+    "name": "personal-database-mobile",
+    "slug": "personal-database-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "personaldatabasemobile",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.personal-database-mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "READ_SMS",
+        "RECEIVE_SMS",
+        "READ_SMS",
+        "RECEIVE_SMS"
+      ],
+      "package": "com.anonymous.personaldatabasemobile"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-web-browser",
+      "expo-font"
+    ],
+    "fonts": [
+      {
+        "asset": "./assets/fonts/PlayfairDisplay-Regular.ttf",
+        "style": "normal"
+      },
+      {
+        "asset": "./assets/fonts/PlayfairDisplay-Bold.ttf",
+        "style": "normal"
+      },
+      {
+        "asset": "./assets/fonts/PlayfairDisplay-Italic.ttf",
+        "style": "italic"
+      },
+      {
+        "asset": "./assets/fonts/SourceSerif4-Regular.ttf",
+        "style": "normal"
+      },
+      {
+        "asset": "./assets/fonts/SourceSerif4-Bold.ttf",
+        "style": "normal"
+      },
+      {
+        "asset": "./assets/fonts/JetBrainsMono-Regular.ttf",
+        "style": "normal"
+      }
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

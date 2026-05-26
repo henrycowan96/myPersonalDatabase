@@ -17,9 +17,9 @@ export default function SetupStep1({ isProcessing, onCreateDatabase, onLogout }:
           <Database size={48} color="white" />
         </LinearGradient>
       </View>
-      <Text style={styles.cardTitle}>ALLOCATE STORAGE</Text>
+      <Text style={styles.cardTitle}>Create Database</Text>
       <Text style={styles.cardSubtitle}>
-        Provision a private, encrypted vector database instance to manage your personal intelligence.
+        Create a database to store your notes so you can chat with them.
       </Text>
       <TouchableOpacity
         onPress={onCreateDatabase}

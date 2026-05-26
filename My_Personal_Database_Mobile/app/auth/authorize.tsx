@@ -101,7 +101,7 @@ export default function AuthAuthorize() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>SERVICE AUTHORIZATION</Text>
+        <Text style={styles.title}>Service Authorization</Text>
         <Text style={styles.subtitle}>
           Authorize the following services to enable data synchronization
         </Text>
@@ -143,7 +143,7 @@ export default function AuthAuthorize() {
             style={styles.continueButton}
           >
             <LinearGradient colors={['#7c3aed', '#4f46e5']} style={styles.buttonGradient}>
-              <Text style={styles.buttonText}>CONTINUE TO SETUP</Text>
+              <Text style={styles.buttonText}>Continue to Setup</Text>
               <ChevronRight size={20} color="white" />
             </LinearGradient>
           </TouchableOpacity>

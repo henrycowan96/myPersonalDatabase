@@ -29,17 +29,18 @@ export default function SetupScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedProtocols, setSelectedProtocols] = useState<Record<string, boolean>>({
     appleNotes: true,
-    appleCalendar: true,
-    appleMusic: true,
-    iosContacts: true,
-    androidContacts: true,
-    locationData: true,
-    spotify: true,
-    googleCalendar: true,
-    gmail: true,
-    googleDrive: true,
-    github: true,
-    zoom: true,
+    // All other data sources disabled - only Apple Notes supported
+    appleCalendar: false,
+    appleMusic: false,
+    iosContacts: false,
+    androidContacts: false,
+    locationData: false,
+    spotify: false,
+    googleCalendar: false,
+    gmail: false,
+    googleDrive: false,
+    github: false,
+    zoom: false,
   });
   const router = useRouter();
   const fetchSetupRef = useRef<{ timeout: number | null; checked: boolean }>({ timeout: null, checked: false });
@@ -101,7 +102,7 @@ export default function SetupScreen() {
       await axios.post(`${API_URL}/create-user-database`, { user_id: user.id });
       setCurrentStep(2);
     } catch (error: any) {
-      Alert.alert('INITIALIZATION ERROR', error.response?.data?.detail || 'Failed to create database');
+      Alert.alert('Setup Error', error.response?.data?.detail || 'Failed to create database');
     } finally {
       setIsProcessing(false);
     }
@@ -128,8 +129,8 @@ export default function SetupScreen() {
 
   const handleUpload = async () => {
     Alert.alert(
-      'WARNING: DATA INGESTION',
-      'Once enabled, data ingestion cannot be disabled without deleting all of your data from the database. Are you sure you want to proceed?',
+      'Data Upload',
+      'Once enabled, data upload cannot be disabled without deleting all of your data from the database. Are you sure you want to proceed?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -139,12 +140,13 @@ export default function SetupScreen() {
             setIsProcessing(true);
             try {
               // Check which services need OAuth authorization
-              const oauthServices = [];
-              if (selectedProtocols.googleCalendar) oauthServices.push('calendar');
-              if (selectedProtocols.gmail) oauthServices.push('gmail');
-              if (selectedProtocols.googleDrive) oauthServices.push('google_drive');
-              if (selectedProtocols.github) oauthServices.push('github');
-              if (selectedProtocols.zoom) oauthServices.push('zoom');
+              // All OAuth services disabled - only Apple Notes supported
+              const oauthServices: string[] = [];
+              // if (selectedProtocols.googleCalendar) oauthServices.push('calendar');
+              // if (selectedProtocols.gmail) oauthServices.push('gmail');
+              // if (selectedProtocols.googleDrive) oauthServices.push('google_drive');
+              // if (selectedProtocols.github) oauthServices.push('github');
+              // if (selectedProtocols.zoom) oauthServices.push('zoom');
 
               // Check authorization status
               if (oauthServices.length > 0) {
@@ -162,7 +164,7 @@ export default function SetupScreen() {
                       const serviceName = service === 'calendar' ? 'Google Calendar' : service === 'gmail' ? 'Gmail' : service === 'google_drive' ? 'Google Drive' : service === 'github' ? 'GitHub' : service === 'zoom' ? 'Zoom' : service;
                       
                       Alert.alert(
-                        `AUTHORIZATION REQUIRED - ${serviceName}`,
+                        `Authorization Required - ${serviceName}`,
                         `You need to authorize ${serviceName}. You will be redirected to the authorization page.`,
                         [
                           {
@@ -224,17 +226,18 @@ export default function SetupScreen() {
                                           // All services authorized, proceed with upload
                                           const apiPermissions = {
                                             notes: selectedProtocols.appleNotes,
-                                            appleCalendar: selectedProtocols.appleCalendar,
-                                            appleMusic: selectedProtocols.appleMusic,
-                                            iosContacts: selectedProtocols.iosContacts,
-                                            androidContacts: selectedProtocols.androidContacts,
-                                            locationData: selectedProtocols.locationData,
-                                            calendar: selectedProtocols.googleCalendar,
-                                            email: selectedProtocols.gmail,
-                                            googleDrive: selectedProtocols.googleDrive,
-                                            spotify: selectedProtocols.spotify,
-                                            github: selectedProtocols.github,
-                                            zoom: selectedProtocols.zoom,
+                                            // All other data sources disabled - only Apple Notes supported
+                                            appleCalendar: false,
+                                            appleMusic: false,
+                                            iosContacts: false,
+                                            androidContacts: false,
+                                            locationData: false,
+                                            calendar: false,
+                                            email: false,
+                                            googleDrive: false,
+                                            spotify: false,
+                                            github: false,
+                                            zoom: false,
                                           };
 
                                           await axios.post(`${API_URL}/upload-documents`, {
@@ -263,7 +266,7 @@ export default function SetupScreen() {
                                         await SecureStore.setItemAsync('oauth_in_progress', 'false');
                                         console.log('[SETUP] Cleared oauth_in_progress flag on timeout for', service);
                                         setIsProcessing(false);
-                                        Alert.alert('TIMEOUT', 'Authorization timed out. Please try again.');
+                                        Alert.alert('Timeout', 'Authorization timed out. Please try again.');
                                       }
                                     }
                                   } catch (err) {
@@ -278,7 +281,7 @@ export default function SetupScreen() {
                                   }
                                 }, 2000); // Poll every 2 seconds
                               } else {
-                                Alert.alert('ERROR', 'Cannot open the authorization URL');
+                                Alert.alert('Error', 'Cannot open the authorization URL');
                                 setIsProcessing(false);
                               }
                             }
@@ -297,17 +300,18 @@ export default function SetupScreen() {
 
               const apiPermissions = {
                 notes: selectedProtocols.appleNotes,
-                appleCalendar: selectedProtocols.appleCalendar,
-                appleMusic: selectedProtocols.appleMusic,
-                iosContacts: selectedProtocols.iosContacts,
-                androidContacts: selectedProtocols.androidContacts,
-                locationData: selectedProtocols.locationData,
-                calendar: selectedProtocols.googleCalendar,
-                email: selectedProtocols.gmail,
-                googleDrive: selectedProtocols.googleDrive,
-                spotify: selectedProtocols.spotify,
-                github: selectedProtocols.github,
-                zoom: selectedProtocols.zoom,
+                // All other data sources disabled - only Apple Notes supported
+                appleCalendar: false,
+                appleMusic: false,
+                iosContacts: false,
+                androidContacts: false,
+                locationData: false,
+                calendar: false,
+                email: false,
+                googleDrive: false,
+                spotify: false,
+                github: false,
+                zoom: false,
               };
 
               await axios.post(`${API_URL}/upload-documents`, {
@@ -331,7 +335,7 @@ export default function SetupScreen() {
 
               router.replace('/');
             } catch (error: any) {
-              Alert.alert('UPLOADING ERROR', error.response?.data?.detail || 'Failed to upload documents');
+              Alert.alert('Upload Error', error.response?.data?.detail || 'Failed to upload documents');
             } finally {
               setIsProcessing(false);
             }
@@ -351,7 +355,7 @@ export default function SetupScreen() {
       
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>INITIALIZATION</Text>
+          <Text style={styles.headerTitle}>Setup</Text>
           <SetupProgress currentStep={currentStep} />
         </View>
 
@@ -386,7 +390,7 @@ export default function SetupScreen() {
         </ScrollView>
         
         <View style={styles.footer}>
-          <Text style={styles.footerText}>SECURE MAINFRAME INITIALIZATION V1.0</Text>
+          <Text style={styles.footerText}>dhaki Setup</Text>
         </View>
       </SafeAreaView>
     </View>

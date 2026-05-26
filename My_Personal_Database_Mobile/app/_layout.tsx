@@ -141,6 +141,8 @@ export default function RootLayout() {
   }, []);
 
   // Auto-logout when app goes to background (disabled during OAuth)
+  // Disabled to prevent unwanted logouts on app reload
+  /*
   useEffect(() => {
     const subscription = AppState.addEventListener('change', async (nextAppState) => {
       if (nextAppState === 'background' || nextAppState === 'inactive') {
@@ -159,6 +161,7 @@ export default function RootLayout() {
       subscription.remove();
     };
   }, []);
+  */
 
   useEffect(() => {
     if (!initialized) return;

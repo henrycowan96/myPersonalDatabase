@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, PanResponder, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, PanResponder, ScrollView, ActivityIndicator } from 'react-native';
 import { X, ThumbsUp, ThumbsDown, MessageSquare, MessageCircle, Brain } from 'lucide-react-native';
 import { formatCategoryName } from '../../utils/textUtils';
 
@@ -31,9 +31,19 @@ interface LLMThoughtModalProps {
   onClose: () => void;
   onFeedback?: (thoughtId: string, feedbackType: string) => void;
   onChatWithContext?: (contentType: string, contentId: string, title: string, content: string) => void;
+  submittingFeedback?: boolean;
+  creatingChatContext?: boolean;
 }
 
-export default function LLMThoughtModal({ thought, translateY, onClose, onFeedback, onChatWithContext }: LLMThoughtModalProps) {
+export default function LLMThoughtModal({
+  thought,
+  translateY,
+  onClose,
+  onFeedback,
+  onChatWithContext,
+  submittingFeedback = false,
+  creatingChatContext = false
+}: LLMThoughtModalProps) {
   const [feedbackGiven, setFeedbackGiven] = useState<string | null>(null);
 
   const handleFeedback = (type: string) => {
@@ -89,10 +99,15 @@ export default function LLMThoughtModal({ thought, translateY, onClose, onFeedba
               console.log('Chat button pressed!', { thought, onChatWithContext });
               onChatWithContext?.('thought', thought.thought_type, thought.title, thought.content);
             }}
+            disabled={creatingChatContext}
           >
-            <MessageCircle size={20} color="#9333ea" />
+            {creatingChatContext ? (
+              <ActivityIndicator size={20} color="#9333ea" />
+            ) : (
+              <MessageCircle size={20} color="#9333ea" />
+            )}
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.closeButtonContainer}
             onPress={onClose}
           >
@@ -146,8 +161,13 @@ export default function LLMThoughtModal({ thought, translateY, onClose, onFeedba
                   feedbackGiven === 'helpful' && styles.feedbackButtonUp
                 ]}
                 onPress={() => handleFeedback('helpful')}
+                disabled={submittingFeedback}
               >
-                <ThumbsUp size={20} color={feedbackGiven === 'helpful' ? '#fff' : '#10b981'} />
+                {submittingFeedback ? (
+                  <ActivityIndicator size={20} color="#10b981" />
+                ) : (
+                  <ThumbsUp size={20} color={feedbackGiven === 'helpful' ? '#fff' : '#10b981'} />
+                )}
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -155,8 +175,13 @@ export default function LLMThoughtModal({ thought, translateY, onClose, onFeedba
                   feedbackGiven === 'not_helpful' && styles.feedbackButtonDown
                 ]}
                 onPress={() => handleFeedback('not_helpful')}
+                disabled={submittingFeedback}
               >
-                <ThumbsDown size={20} color={feedbackGiven === 'not_helpful' ? '#fff' : '#ef4444'} />
+                {submittingFeedback ? (
+                  <ActivityIndicator size={20} color="#ef4444" />
+                ) : (
+                  <ThumbsDown size={20} color={feedbackGiven === 'not_helpful' ? '#fff' : '#ef4444'} />
+                )}
               </TouchableOpacity>
             </View>
           </View>

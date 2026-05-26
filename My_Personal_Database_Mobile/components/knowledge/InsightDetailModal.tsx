@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Animated, PanResponder } from 'react-native';
-import { X, ThumbsUp, ThumbsDown, FileText, ChevronRight, MessageCircle } from 'lucide-react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Animated, PanResponder, ActivityIndicator } from 'react-native';
+import { X, ThumbsUp, ThumbsDown, FileText, ChevronRight, MessageCircle, Loader2 } from 'lucide-react-native';
 import { formatCategoryName } from '../../utils/textUtils';
 
 interface Insight {
@@ -25,17 +25,21 @@ interface InsightDetailModalProps {
   onSourcePress: (source: any) => void;
   onFeedback: (insightId: string, feedbackType: string) => void;
   onChatWithContext?: (contentType: string, contentId: string, title: string, content: string) => void;
+  submittingFeedback?: boolean;
+  creatingChatContext?: boolean;
 }
 
-export default function InsightDetailModal({ 
-  insight, 
-  translateY, 
-  onClose, 
-  getCategoryIcon, 
+export default function InsightDetailModal({
+  insight,
+  translateY,
+  onClose,
+  getCategoryIcon,
   getCategoryColor,
   onSourcePress,
   onFeedback,
-  onChatWithContext 
+  onChatWithContext,
+  submittingFeedback = false,
+  creatingChatContext = false
 }: InsightDetailModalProps) {
   const [feedbackGiven, setFeedbackGiven] = useState<string | null>(null);
 
@@ -92,8 +96,13 @@ export default function InsightDetailModal({
             onPress={() => {
               onChatWithContext?.('insight', insight.category, insight.title, insight.description);
             }}
+            disabled={creatingChatContext}
           >
-            <MessageCircle size={20} color="#9333ea" />
+            {creatingChatContext ? (
+              <ActivityIndicator size={20} color="#9333ea" />
+            ) : (
+              <MessageCircle size={20} color="#9333ea" />
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.closeButtonContainer}
@@ -183,8 +192,13 @@ export default function InsightDetailModal({
                 feedbackGiven === 'helpful' && styles.feedbackButtonUp
               ]}
               onPress={() => handleFeedback('helpful')}
+              disabled={submittingFeedback}
             >
-              <ThumbsUp size={20} color={feedbackGiven === 'helpful' ? '#fff' : '#10b981'} />
+              {submittingFeedback ? (
+                <ActivityIndicator size={20} color="#10b981" />
+              ) : (
+                <ThumbsUp size={20} color={feedbackGiven === 'helpful' ? '#fff' : '#10b981'} />
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -192,8 +206,13 @@ export default function InsightDetailModal({
                 feedbackGiven === 'not_helpful' && styles.feedbackButtonDown
               ]}
               onPress={() => handleFeedback('not_helpful')}
+              disabled={submittingFeedback}
             >
-              <ThumbsDown size={20} color={feedbackGiven === 'not_helpful' ? '#fff' : '#ef4444'} />
+              {submittingFeedback ? (
+                <ActivityIndicator size={20} color="#ef4444" />
+              ) : (
+                <ThumbsDown size={20} color={feedbackGiven === 'not_helpful' ? '#fff' : '#ef4444'} />
+              )}
             </TouchableOpacity>
           </View>
         </View>

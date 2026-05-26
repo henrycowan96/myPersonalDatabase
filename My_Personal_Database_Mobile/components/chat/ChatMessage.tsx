@@ -1,8 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { MessageCircle, Database, FileText } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { stripMarkdown } from '../../utils/textUtils';
+import { MessageCircle, Database, FileText, ChevronRight } from 'lucide-react-native';
+import { stripMarkdown, stripHtml } from '../../utils/textUtils';
 
 interface Source {
   content: string;
@@ -24,13 +23,8 @@ export default function ChatMessage({ message, onSourcePress, getSourceTitle }: 
   if (message.role === 'user') {
     return (
       <View style={styles.messageRow}>
-        <View style={styles.messageBubble}>
-          <LinearGradient
-            colors={['#7c3aed', '#4f46e5']}
-            style={styles.userGradient}
-          >
-            <Text style={styles.userText}>{message.content}</Text>
-          </LinearGradient>
+        <View style={styles.userBubble}>
+          <Text style={styles.userText}>{message.content}</Text>
         </View>
       </View>
     );
@@ -44,13 +38,13 @@ export default function ChatMessage({ message, onSourcePress, getSourceTitle }: 
             <View style={styles.routingBadge}>
               {message.routing_decision === 'general' ? (
                 <>
-                  <MessageCircle size={10} color="#64748b" />
-                  <Text style={styles.routingBadgeText}>General Conversation</Text>
+                  <MessageCircle size={12} color="#6b7280" />
+                  <Text style={styles.routingBadgeText}>General conversation</Text>
                 </>
               ) : (
                 <>
-                  <Database size={10} color="#9333ea" />
-                  <Text style={styles.routingBadgeText}>Knowledge Base Search</Text>
+                  <Database size={12} color="#8b5cf6" />
+                  <Text style={styles.routingBadgeText}>Knowledge base search</Text>
                 </>
               )}
             </View>
@@ -58,21 +52,23 @@ export default function ChatMessage({ message, onSourcePress, getSourceTitle }: 
           <Text style={styles.assistantText}>{stripMarkdown(message.content)}</Text>
           {message.sources && message.sources.length > 0 && (
             <View style={styles.sourceSection}>
-              <Text style={styles.sourceLabel}>VERIFIED SOURCES</Text>
+              <Text style={styles.sourceLabel}>Sources</Text>
               {message.sources.map((source: Source, sIdx: number) => (
                 <TouchableOpacity
                   key={sIdx}
                   style={styles.sourceCard}
                   onPress={() => onSourcePress(source)}
+                  activeOpacity={0.7}
                 >
                   <Text style={styles.sourceText} numberOfLines={2}>
-                    "{source.content}"
+                    {stripHtml(source.content)}
                   </Text>
                   <View style={styles.sourceMeta}>
-                    <FileText size={10} color="#9333ea" />
+                    <FileText size={11} color="#8b5cf6" />
                     <Text style={styles.sourceFilename}>
                       {getSourceTitle(source)}
                     </Text>
+                    <ChevronRight size={12} color="#6b7280" style={styles.chevron} />
                   </View>
                 </TouchableOpacity>
               ))}
@@ -87,96 +83,92 @@ export default function ChatMessage({ message, onSourcePress, getSourceTitle }: 
 const styles = StyleSheet.create({
   messageRow: {
     flexDirection: 'row',
-    marginBottom: 24,
+    marginBottom: 20,
   },
-  messageBubble: {
-    maxWidth: '85%',
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  userGradient: {
-    padding: 16,
+  userBubble: {
+    backgroundColor: '#8b5cf6',
+    maxWidth: '80%',
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginLeft: 'auto',
   },
   userText: {
     color: '#fff',
     fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '600',
+    lineHeight: 22,
+    fontWeight: '500',
   },
   assistantBubble: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderTopLeftRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    maxWidth: '90%',
   },
   assistantContent: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 16,
     padding: 16,
   },
   routingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderRadius: 8,
     marginBottom: 12,
     alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    gap: 6,
   },
   routingBadgeText: {
-    color: '#64748b',
-    fontSize: 10,
-    fontWeight: '600',
-    marginLeft: 4,
-    letterSpacing: 0.5,
+    color: '#9ca3af',
+    fontSize: 12,
+    fontWeight: '500',
   },
   assistantText: {
-    color: '#cbd5e1',
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '500',
+    color: '#e5e7eb',
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '400',
   },
   sourceSection: {
     marginTop: 16,
-    paddingTop: 16,
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
   },
   sourceLabel: {
-    color: '#64748b',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 2,
-    marginBottom: 12,
+    color: '#9ca3af',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   sourceCard: {
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     padding: 12,
-    borderRadius: 16,
+    borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.03)',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   sourceText: {
-    color: '#94a3b8',
-    fontSize: 12,
-    fontStyle: 'italic',
+    color: '#d1d5db',
+    fontSize: 13,
     lineHeight: 18,
+    marginBottom: 8,
   },
   sourceMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    gap: 6,
   },
   sourceFilename: {
-    color: '#9333ea',
-    fontSize: 10,
-    fontWeight: 'bold',
-    marginLeft: 6,
+    color: '#8b5cf6',
+    fontSize: 12,
+    fontWeight: '500',
+    flex: 1,
+  },
+  chevron: {
+    marginLeft: 4,
   },
 });

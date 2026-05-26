@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 
 interface WelcomeScreenProps {
   iconSource: any;
@@ -8,13 +8,22 @@ interface WelcomeScreenProps {
 export default function WelcomeScreen({ iconSource }: WelcomeScreenProps) {
   return (
     <View style={styles.welcomeContainer}>
-      <Image 
-        source={iconSource} 
-        style={styles.welcomeIcon}
-      />
-      <Text style={styles.dhakiText}>dhaki</Text>
-      <Text style={styles.welcomeText}>Understand everything.</Text>
-      <Text style={styles.welcomeText}>Answer anything.</Text>
+      <View style={styles.iconContainer}>
+        <Image source={iconSource} style={styles.iconImage} />
+      </View>
+      <Text style={styles.title}>dhaki</Text>
+      <Text style={styles.subtitle}>Your personal knowledge assistant</Text>
+      <View style={styles.suggestionsContainer}>
+        <View style={styles.suggestion}>
+          <Text style={styles.suggestionText}>"What did I work on last week?"</Text>
+        </View>
+        <View style={styles.suggestion}>
+          <Text style={styles.suggestionText}>"Summarize my notes about project X"</Text>
+        </View>
+        <View style={styles.suggestion}>
+          <Text style={styles.suggestionText}>"Tell me about myself."</Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -23,36 +32,53 @@ const styles = StyleSheet.create({
   welcomeContainer: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 400,
-    paddingVertical: 40,
+    justifyContent: 'flex-start',
+    paddingHorizontal: 20,
+    
   },
-  welcomeIcon: {
+  iconContainer: {
     width: 120,
     height: 120,
-    borderRadius: 24,
-    marginBottom: 24,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    
   },
-  welcomeText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textAlign: 'center',
+  iconImage: {
+    width: 75,
+    height: 75,
+    resizeMode: 'contain',
+    borderRadius: 20,
+  },
+  title: {
+    color: '#e5e7eb',
+    fontSize: 28,
+    fontWeight: '600',
+    letterSpacing: -0.5,
     marginBottom: 8,
   },
-  dhakiText: {
-    color: '#9333ea',
-    fontSize: 36,
-    fontWeight: '300',
-    letterSpacing: 6,
-    textAlign: 'center',
-    marginBottom: 16,
-    textTransform: 'lowercase',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-    textShadowColor: 'rgba(147, 51, 234, 0.15)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-    opacity: 0.95,
+  subtitle: {
+    color: '#9ca3af',
+    fontSize: 15,
+    fontWeight: '400',
+    marginBottom: 32,
+  },
+  suggestionsContainer: {
+    width: '100%',
+    maxWidth: 400,
+    gap: 12,
+  },
+  suggestion: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
+    padding: 16,
+  },
+  suggestionText: {
+    color: '#d1d5db',
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 20,
   },
 });

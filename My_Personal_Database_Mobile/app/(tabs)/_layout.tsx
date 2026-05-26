@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { MessageSquare, Settings, Clock, Brain, ArrowRightLeft } from 'lucide-react-native';
+import { MessageSquare, Settings, Clock, Brain } from 'lucide-react-native';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 
@@ -9,7 +9,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
-      initialRouteName="knowledge"
+      initialRouteName="index"
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'dark'].tint,
         tabBarInactiveTintColor: Colors[colorScheme ?? 'dark'].tabIconDefault,
@@ -29,20 +29,6 @@ export default function TabLayout() {
         headerShown: false,
       }}>
       <Tabs.Screen
-        name="knowledge"
-        options={{
-          title: 'Knowledge',
-          tabBarIcon: ({ color, focused }) => <Brain size={24} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="timeline"
-        options={{
-          title: 'Timeline',
-          tabBarIcon: ({ color, focused }) => <ArrowRightLeft size={24} color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="index"
         options={{
           title: 'Chat',
@@ -54,6 +40,13 @@ export default function TabLayout() {
         options={{
           title: 'Sessions',
           tabBarIcon: ({ color, focused }) => <Clock size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="knowledge"
+        options={{
+          title: 'Knowledge',
+          tabBarIcon: ({ color, focused }) => <Brain size={24} color={color} />,
         }}
       />
       <Tabs.Screen

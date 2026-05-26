@@ -46,7 +46,7 @@ export default function LoginScreen() {
         
         // Show confirmation message
         Alert.alert(
-          'CHECK YOUR EMAIL',
+          'Check your email',
           'Please check your email to confirm your account before signing in.',
           [{ text: 'OK' }]
         );
@@ -89,25 +89,25 @@ export default function LoginScreen() {
                 <Shield size={42} color="white" />
               </LinearGradient>
             </View>
-            <Text style={styles.title}>VAULT</Text>
+            <Text style={styles.title}>dhaki</Text>
             <View style={styles.titleUnderline} />
             <Text style={styles.subtitle}>
               {isLogin 
-                ? 'Secure link to your private\nintelligence mainframe.' 
-                : 'Initialize your encrypted storage\nand start building your vault.'}
+                ? 'Your personal knowledge assistant.\nChat with your notes.' 
+                : 'Create your account and start\nchatting with your notes.'}
             </Text>
           </View>
 
           {/* Form Card */}
           <View style={styles.card}>
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>OPERATOR IDENTITY</Text>
+              <Text style={styles.inputLabel}>Email</Text>
               <View style={styles.inputWrapper}>
                 <Mail size={18} color="#6366f1" style={styles.inputIcon} />
                 <TextInput
                   value={email}
                   onChangeText={setEmail}
-                  placeholder="Email / Auth ID"
+                  placeholder="your@email.com"
                   autoCapitalize="none"
                   keyboardType="email-address"
                   placeholderTextColor="#475569"
@@ -117,7 +117,7 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>ACCESS KEY</Text>
+              <Text style={styles.inputLabel}>Password</Text>
               <View style={styles.inputWrapper}>
                 <Lock size={18} color="#6366f1" style={styles.inputIcon} />
                 <TextInput
@@ -154,7 +154,7 @@ export default function LoginScreen() {
                 ) : (
                   <>
                     <Text style={styles.buttonText}>
-                      {isLogin ? 'ESTABLISH LINK' : 'INITIALIZE'}
+                      {isLogin ? 'Sign In' : 'Sign Up'}
                     </Text>
                     <ArrowRight size={20} color="white" />
                   </>
@@ -173,9 +173,9 @@ export default function LoginScreen() {
               style={styles.switchButton}
             >
               <Text style={styles.switchText}>
-                {isLogin ? "NEW OPERATOR? " : "EXISTING OPERATOR? "}
+                {isLogin ? "Don't have an account? " : "Already have an account? "}
                 <Text style={styles.switchTextHighlight}>
-                  {isLogin ? 'SIGN UP' : 'SIGN IN'}
+                  {isLogin ? 'Sign up' : 'Sign in'}
                 </Text>
               </Text>
             </TouchableOpacity>

@@ -10,12 +10,13 @@ import {
   StatusBar,
   Animated,
   Dimensions,
+  TouchableOpacity,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Brain, AlertTriangle, Star, TrendingUp, Zap } from 'lucide-react-native';
+import { Brain, AlertTriangle, Star, TrendingUp, Zap, RefreshCw, ChevronRight } from 'lucide-react-native';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { useRouter } from 'expo-router';
@@ -26,6 +27,7 @@ import LLMThoughtCard from '../../components/knowledge/LLMThoughtCard';
 import InsightDetailModal from '../../components/knowledge/InsightDetailModal';
 import DocumentModal from '../../components/knowledge/DocumentModal';
 import LLMThoughtModal from '../../components/knowledge/LLMThoughtModal';
+import LoadingScreen from '../../components/LoadingScreen';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.100.119:8000';
 const { width } = Dimensions.get('window');
@@ -35,8 +37,9 @@ declare global {
   var handleChatWithContext: (router: any, user: User | null, contentType: string, contentId: string, title: string, content: string, onClose?: () => void) => Promise<void>;
 }
 
-const handleChatWithContext = async (router: any, user: User | null, contentType: string, contentId: string, title: string, content: string, onClose?: () => void) => {
+const handleChatWithContext = async (router: any, user: User | null, contentType: string, contentId: string, title: string, content: string, onClose?: () => void, setCreatingChatContext?: (loading: boolean) => void) => {
   console.log('handleChatWithContext called!', { router, user, contentType, contentId, title, API_URL });
+  if (setCreatingChatContext) setCreatingChatContext(true);
   try {
     const response = await axios.post(`${API_URL}/chat-context`, {
       user_id: user?.id || '',
@@ -70,6 +73,8 @@ const handleChatWithContext = async (router: any, user: User | null, contentType
   } catch (error) {
     console.error('Chat context error:', error);
     Alert.alert('Error', 'Failed to create chat context');
+  } finally {
+    if (setCreatingChatContext) setCreatingChatContext(false);
   }
 };
 
@@ -124,6 +129,9 @@ export default function KnowledgeScreen() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingDB, setLoadingDB] = useState(false);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [creatingChatContext, setCreatingChatContext] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [insights, setInsights] = useState<Insight[]>([]);
@@ -135,7 +143,35 @@ export default function KnowledgeScreen() {
   const [llmThoughts, setLLMThoughts] = useState<LLMThought[]>([]);
   const [loadingThoughts, setLoadingThoughts] = useState(false);
   const [selectedThought, setSelectedThought] = useState<LLMThought | null>(null);
+  const [showAllInsights, setShowAllInsights] = useState(false);
+  const [showAllThoughts, setShowAllThoughts] = useState(false);
   const colorScheme = useColorScheme();
+
+  const filterStaleThoughts = (thoughts: LLMThought[]): LLMThought[] => {
+    if (thoughts.length === 0) return thoughts;
+
+    // Find the most recent generation timestamp
+    const mostRecentTimestamp = thoughts.reduce((latest, thought) => {
+      const thoughtDate = new Date(thought.generated_at);
+      return thoughtDate > latest ? thoughtDate : latest;
+    }, new Date(thoughts[0].generated_at));
+
+    // Only include thoughts from the most recent run (within 5 minute window)
+    const fiveMinuteMs = 5 * 60 * 1000;
+    return thoughts.filter(thought => {
+      const thoughtDate = new Date(thought.generated_at);
+      const timeDiff = Math.abs(mostRecentTimestamp.getTime() - thoughtDate.getTime());
+      return timeDiff <= fiveMinuteMs;
+    });
+  };
+
+  const cleanCategoryName = (category: string): string => {
+    return category
+      .replace(/[_-]/g, ' ')    // Replace underscores and hyphens with spaces first
+      .replace(/[#*`~]/g, '')   // Remove other markdown special characters
+      .replace(/\s+/g, ' ')     // Replace multiple spaces with single space
+      .trim();                  // Remove leading/trailing spaces
+  };
   
   const panY = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
@@ -150,17 +186,20 @@ export default function KnowledgeScreen() {
   }, []);
 
   const loadAllData = async (userId: string) => {
+    setLoading(true);
     // Try DB first (persistent across devices), then AsyncStorage (offline fallback)
     const hasData = await loadFromDB(userId);
     if (!hasData) {
       await loadFromCache(userId);
     }
+    setLoading(false);
     // NOTE: We intentionally do NOT auto-refresh from API here.
     // Insights are regenerated in the background after data upload.
     // Users can manually refresh via pull-to-refresh.
   };
 
   const loadFromDB = async (userId: string): Promise<boolean> => {
+    setLoadingDB(true);
     try {
       const [insightsRes, thoughtsRes] = await Promise.all([
         axios.get(`${API_URL}/insights/load/${userId}?limit=20`).catch(() => null),
@@ -191,7 +230,7 @@ export default function KnowledgeScreen() {
       }
 
       if (thoughtsRes?.data?.thoughts?.length) {
-        setLLMThoughts(thoughtsRes.data.thoughts);
+        setLLMThoughts(filterStaleThoughts(thoughtsRes.data.thoughts));
         hasThoughts = true;
       }
 
@@ -199,6 +238,8 @@ export default function KnowledgeScreen() {
     } catch (e) {
       console.warn('Failed to load from DB', e);
       return false;
+    } finally {
+      setLoadingDB(false);
     }
   };
 
@@ -214,7 +255,7 @@ export default function KnowledgeScreen() {
         setFilteredInsights(parsed.filter((i: Insight) => i.significance_score >= 0.7));
       }
       if (cachedThoughts) {
-        setLLMThoughts(JSON.parse(cachedThoughts));
+        setLLMThoughts(filterStaleThoughts(JSON.parse(cachedThoughts)));
       }
       if (cachedCategories) {
         setDetectedCategories(JSON.parse(cachedCategories));
@@ -321,7 +362,7 @@ export default function KnowledgeScreen() {
         insights: insights
       });
       const thoughts = response.data.thoughts;
-      setLLMThoughts(thoughts);
+      setLLMThoughts(filterStaleThoughts(thoughts));
       return thoughts;
     } catch (error) {
       console.error('Error loading LLM thoughts:', error);
@@ -333,6 +374,7 @@ export default function KnowledgeScreen() {
 
   const submitFeedback = async (insightId: string | undefined, feedbackType: string) => {
     if (!user || !insightId) return;
+    setSubmittingFeedback(true);
     try {
       await axios.post(`${API_URL}/insights/feedback`, null, {
         params: {
@@ -344,6 +386,9 @@ export default function KnowledgeScreen() {
       Alert.alert('Thanks!', 'Feedback recorded');
     } catch (error) {
       console.error('Error submitting feedback:', error);
+      Alert.alert('Error', 'Failed to submit feedback');
+    } finally {
+      setSubmittingFeedback(false);
     }
   };
 
@@ -370,43 +415,15 @@ export default function KnowledgeScreen() {
   };
 
   const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'urgent': return <AlertTriangle size={20} color="#ef4444" />;
-      case 'milestone': return <Star size={20} color="#f59e0b" />;
-      case 'trending': return <TrendingUp size={20} color="#10b981" />;
-      case 'important': return <Zap size={20} color="#8b5cf6" />;
-      default: return <Brain size={20} color={Colors[colorScheme ?? 'dark'].tint} />;
-    }
+    return <Brain size={20} color="#fff" />;
   };
 
   const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'urgent': return '#ef4444';
-      case 'milestone': return '#f59e0b';
-      case 'trending': return '#10b981';
-      case 'important': return '#8b5cf6';
-      default: return Colors[colorScheme ?? 'dark'].tint;
-    }
+    return '#9333ea';
   };
 
   if (loading) {
-    return (
-      <View style={styles.container}>
-        <StatusBar barStyle="light-content" />
-        <LinearGradient
-          colors={['#0f172a', '#020617', '#000000']}
-          style={StyleSheet.absoluteFill}
-        />
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#9333ea" />
-            <Text style={[styles.loadingText, { color: '#fff' }]}>
-              Analyzing your life patterns...
-            </Text>
-          </View>
-        </SafeAreaView>
-      </View>
-    );
+    return <LoadingScreen message="Loading your insights..." subtext="Retrieving from database" />;
   }
 
   return (
@@ -417,97 +434,177 @@ export default function KnowledgeScreen() {
         style={StyleSheet.absoluteFill}
       />
       <SafeAreaView style={styles.safeArea}>
-        <KnowledgeHeader
-          onRefresh={onRefresh}
-          refreshing={refreshing}
-          onSearchToggle={() => setShowSearch(!showSearch)}
-        />
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Knowledge</Text>
+          <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
+            <RefreshCw size={20} color="#9333ea" />
+          </TouchableOpacity>
+        </View>
 
         <ScrollView 
           style={styles.content} 
           showsVerticalScrollIndicator={false}
         >
-          <CategoryFilter
-            categories={detectedCategories}
-            selectedCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
-            getCategoryColor={getCategoryColor}
-          />
+          {/* Category Filter */}
+          <View style={styles.section}>
+            <Text style={styles.sectionHeader}>CATEGORIES</Text>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.categoryScroll}
+              contentContainerStyle={styles.categoryContainer}
+            >
+              {detectedCategories.map((category) => (
+                <TouchableOpacity
+                  key={category}
+                  onPress={() => setSelectedCategory(category)}
+                  style={[
+                    styles.categoryChip,
+                    selectedCategory === category && styles.categoryChipActive
+                  ]}
+                >
+                  <Text style={[
+                    styles.categoryChipText,
+                    selectedCategory === category && styles.categoryChipTextActive
+                  ]}>
+                    {cleanCategoryName(category).toUpperCase()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
           
-          {filteredInsights.length === 0 ? (
+          {loadingDB ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionHeader}>INSIGHTS</Text>
+              <View style={styles.sectionCard}>
+                {[1, 2, 3].map((i) => (
+                  <View key={i} style={styles.insightItem}>
+                    <View style={styles.insightItemContent}>
+                      <View style={[styles.insightIconContainer, styles.skeleton]} />
+                      <View style={styles.insightTextContainer}>
+                        <View style={[styles.skeletonTitle, styles.skeleton]} />
+                        <View style={[styles.skeletonDescription, styles.skeleton]} />
+                        <View style={[styles.skeletonMeta, styles.skeleton]} />
+                      </View>
+                      <View style={[styles.skeletonChevron, styles.skeleton]} />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : filteredInsights.length === 0 && !loading ? (
             <View style={styles.emptyState}>
-              <Brain size={48} color="#ffffff40" />
-              <Text style={[
-                styles.emptyStateTitle,
-                { color: '#fff' }
-              ]}>
-                No insights yet
-              </Text>
-              <Text style={[
-                styles.emptyStateSubtitle,
-                { color: '#ffffff60' }
-              ]}>
+              <View style={styles.emptyIconContainer}>
+                <LinearGradient
+                  colors={['#9333ea', '#9333eacc']}
+                  style={styles.emptyIconGradient}
+                >
+                  <Brain size={48} color="#fff" />
+                </LinearGradient>
+              </View>
+              <Text style={styles.emptyTitle}>No insights yet</Text>
+              <Text style={styles.emptySubtitle}>
                 Upload more data to generate insights about your life
               </Text>
             </View>
           ) : (
-            <View>
-              <Text style={[
-                styles.sectionTitle, { color: '#fff' }]}>
-Insights
-              </Text>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                style={styles.insightsHorizontalScroll}
-                contentContainerStyle={styles.insightsHorizontalContainer}
-              >
-                {filteredInsights.map((insight) => (
-                  <InsightCard
+            <View style={styles.section}>
+              <Text style={styles.sectionHeader}>INSIGHTS</Text>
+              <View style={styles.sectionCard}>
+                {(showAllInsights ? filteredInsights : filteredInsights.slice(0, 3)).map((insight) => (
+                  <TouchableOpacity
                     key={insight.id}
-                    insight={insight}
                     onPress={() => {
                       setSelectedInsight(insight);
                       translateY.setValue(0);
                     }}
-                    getCategoryIcon={getCategoryIcon}
-                    getCategoryColor={getCategoryColor}
-                  />
+                    style={styles.insightItem}
+                  >
+                    <View style={styles.insightItemContent}>
+                      <View style={styles.insightIconContainer}>
+                        <LinearGradient
+                          colors={[getCategoryColor(insight.category), `${getCategoryColor(insight.category)}cc`]}
+                          style={styles.insightIconGradient}
+                        >
+                          {getCategoryIcon(insight.category)}
+                        </LinearGradient>
+                      </View>
+                      <View style={styles.insightTextContainer}>
+                        <Text style={styles.insightTitle}>{insight.title}</Text>
+                        <Text style={styles.insightDescription} numberOfLines={2}>
+                          {insight.description}
+                        </Text>
+                      </View>
+                      <ChevronRight size={20} color="#475569" />
+                    </View>
+                  </TouchableOpacity>
                 ))}
-              </ScrollView>
+                {filteredInsights.length > 3 && (
+                  <TouchableOpacity
+                    onPress={() => setShowAllInsights(!showAllInsights)}
+                    style={styles.seeMoreButton}
+                  >
+                    <Text style={styles.seeMoreText}>
+                      {showAllInsights ? 'See Less' : `See More (${filteredInsights.length - 3} more)`}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           )}
           
           {llmThoughts.length > 0 && (
-            <View>
-              <Text style={[
-                styles.sectionTitle, { color: '#fff' }]}>
-Thoughts
-              </Text>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                style={styles.insightsHorizontalScroll}
-                contentContainerStyle={styles.insightsHorizontalContainer}
-              >
-                {llmThoughts.map((thought) => (
-                  <LLMThoughtCard
+            <View style={styles.section}>
+              <Text style={styles.sectionHeader}>AI THOUGHTS</Text>
+              <View style={styles.sectionCard}>
+                {(showAllThoughts ? llmThoughts : llmThoughts.slice(0, 3)).map((thought) => (
+                  <TouchableOpacity
                     key={thought.id}
-                    thought={thought}
                     onPress={() => {
                       setSelectedThought(thought);
                       translateY.setValue(0);
                     }}
-                  />
+                    style={styles.insightItem}
+                  >
+                    <View style={styles.insightItemContent}>
+                      <View style={styles.insightIconContainer}>
+                        <LinearGradient
+                          colors={['#9333ea', '#9333eacc']}
+                          style={styles.insightIconGradient}
+                        >
+                          <Brain size={20} color="#fff" />
+                        </LinearGradient>
+                      </View>
+                      <View style={styles.insightTextContainer}>
+                        <Text style={styles.insightTitle}>{cleanCategoryName(thought.title)}</Text>
+                        <Text style={styles.insightDescription} numberOfLines={2}>
+                          {cleanCategoryName(thought.content)}
+                        </Text>
+                      </View>
+                      <ChevronRight size={20} color="#475569" />
+                    </View>
+                  </TouchableOpacity>
                 ))}
-              </ScrollView>
+                {llmThoughts.length > 3 && (
+                  <TouchableOpacity
+                    onPress={() => setShowAllThoughts(!showAllThoughts)}
+                    style={styles.seeMoreButton}
+                  >
+                    <Text style={styles.seeMoreText}>
+                      {showAllThoughts ? 'See Less' : `See More (${llmThoughts.length - 3} more)`}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           )}
           
           {loadingThoughts && (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#9333ea" />
-              <Text style={[styles.loadingText, { color: '#fff' }]}>
+              <Text style={styles.loadingText}>
                 Generating AI thoughts...
               </Text>
             </View>
@@ -527,7 +624,9 @@ Thoughts
             getCategoryColor={getCategoryColor}
             onSourcePress={(source) => setSelectedDocument(source)}
             onFeedback={submitFeedback}
-            onChatWithContext={(contentType, contentId, title, content) => handleChatWithContext(router, user, contentType, contentId, title, content, closeInsightDetail)}
+            onChatWithContext={(contentType, contentId, title, content) => handleChatWithContext(router, user, contentType, contentId, title, content, closeInsightDetail, setCreatingChatContext)}
+            submittingFeedback={submittingFeedback}
+            creatingChatContext={creatingChatContext}
           />
         )}
 
@@ -544,7 +643,9 @@ Thoughts
             translateY={translateY}
             onClose={closeThoughtDetail}
             onFeedback={submitFeedback}
-            onChatWithContext={(contentType, contentId, title, content) => handleChatWithContext(router, user, contentType, contentId, title, content, closeThoughtDetail)}
+            onChatWithContext={(contentType, contentId, title, content) => handleChatWithContext(router, user, contentType, contentId, title, content, closeThoughtDetail, setCreatingChatContext)}
+            submittingFeedback={submittingFeedback}
+            creatingChatContext={creatingChatContext}
           />
         )}
       </SafeAreaView>
@@ -560,42 +661,191 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
+  title: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: -0.5,
+  },
+  refreshButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(147, 51, 234, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(147, 51, 234, 0.3)',
   },
   content: {
     flex: 1,
-    paddingHorizontal: 0,
-    paddingTop: 0,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  section: {
+    marginBottom: 32,
+  },
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+    letterSpacing: 1.5,
+    marginBottom: 12,
+    paddingHorizontal: 24,
+    textTransform: 'uppercase',
+  },
+  sectionCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    marginHorizontal: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  categoryScroll: {
+    paddingHorizontal: 16,
+  },
+  categoryContainer: {
+    paddingHorizontal: 8,
+  },
+  categoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginRight: 8,
+  },
+  categoryChipActive: {
+    backgroundColor: 'rgba(147, 51, 234, 0.2)',
+    borderColor: 'rgba(147, 51, 234, 0.5)',
+  },
+  categoryChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94a3b8',
+  },
+  categoryChipTextActive: {
+    color: '#9333ea',
+  },
+  insightItem: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  insightItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  insightIconContainer: {
+    marginRight: 16,
+  },
+  insightIconGradient: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  insightTextContainer: {
+    flex: 1,
+  },
+  insightTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  insightDescription: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#64748b',
     marginBottom: 8,
-    paddingHorizontal: 20,
   },
-  emptyState: {
+  insightMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  insightCategory: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#9333ea',
+    marginRight: 12,
+  },
+  insightScore: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748b',
+  },
+  seeMoreButton: {
+    padding: 16,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  seeMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#9333ea',
+  },
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 60,
   },
-  emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  loadingText: {
     marginTop: 16,
-    marginBottom: 8,
+    fontSize: 16,
+    color: '#fff',
   },
-  emptyStateSubtitle: {
+  loadingSubtext: {
+    marginTop: 8,
     fontSize: 14,
-    textAlign: 'center',
+    color: '#64748b',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
     paddingHorizontal: 40,
+  },
+  emptyIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  emptyIconGradient: {
+    width: 100,
+    height: 100,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: 4,
+    marginBottom: 12,
+    textTransform: 'uppercase',
+  },
+  emptySubtitle: {
+    color: '#94a3b8',
+    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 22,
+    fontWeight: '500',
   },
   overlay: {
     position: 'absolute',
@@ -606,11 +856,26 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     zIndex: 999,
   },
-  insightsHorizontalScroll: {
-    marginVertical: 0,
+  skeleton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
   },
-  insightsHorizontalContainer: {
-    paddingLeft: 20,
-    paddingRight: 20,
+  skeletonTitle: {
+    height: 20,
+    width: '70%',
+    marginBottom: 8,
+  },
+  skeletonDescription: {
+    height: 14,
+    width: '90%',
+    marginBottom: 8,
+  },
+  skeletonMeta: {
+    height: 12,
+    width: '40%',
+  },
+  skeletonChevron: {
+    width: 20,
+    height: 20,
   },
 });
