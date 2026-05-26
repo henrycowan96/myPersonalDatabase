@@ -1,6 +1,7 @@
 """
-Fact extraction from document chunks using LLM.
+Fact extraction from Apple Notes chunks using LLM.
 Hooks into the existing ingestion pipeline after deduplication.
+Customized for Apple Notes data source only.
 """
 
 import json
@@ -16,7 +17,7 @@ import utils
 from facts.vocabulary import ALL_ENTITY_KEYS, ALL_ENTITY_CATEGORIES, get_category_for_key
 
 
-EXTRACTION_SYSTEM_PROMPT_TEMPLATE = """You extract factual claims about a person's life from personal documents.
+EXTRACTION_SYSTEM_PROMPT_TEMPLATE = """You extract factual claims about a person's life from Apple Notes.
 Return ONLY a JSON array. Each object must have exactly these fields:
 - entity_key: one of [{entity_keys}]
 - entity_category: one of [{entity_categories}]
@@ -25,10 +26,11 @@ Return ONLY a JSON array. Each object must have exactly these fields:
 - tense: "present" | "past" | "hypothetical"
 
 Rules:
-- Only extract claims about the document's author, not other people
+- Only extract claims about the note's author, not other people
 - "present" tense only for things that appear to be currently true at the time of writing
 - "hypothetical" for wishes, plans, or what-ifs ("I want to", "I should", "maybe someday")
 - Skip events (meetings, trips) — only extract persistent states
+- Focus on personal reflections, goals, and self-documentation typical of Apple Notes
 - Skip anything with confidence below 0.6
 - Return [] if no claims found
 
@@ -66,22 +68,14 @@ def _parse_json_safely(text: str) -> List[Dict[str, Any]]:
 
 
 def _extract_source_timestamp(item: Any, service: str) -> datetime:
-    """Extract the best source timestamp from a raw data item."""
+    """Extract the best source timestamp from a raw Apple Notes item."""
     ts_str = None
-    if service == "google_calendar":
-        start = item.get("start", {})
-        ts_str = start.get("dateTime") or start.get("date")
-    elif service == "gmail":
-        ts_str = item.get("date")
-    elif service == "google_drive":
-        ts_str = item.get("modified_time")
-    elif service == "apple_notes":
+    if service == "apple_notes":
         ts_str = item.get("created") or item.get("modified")
-    elif service == "apple_calendar":
-        ts_str = item.get("start_date")
-    elif service == "apple_music":
-        # Apple Music items have no reliable creation date; skip fact extraction
-        pass
+    else:
+        # Only Apple Notes is supported
+        print(f"[FACTS EXTRACT] Unsupported service: {service}")
+        return datetime.now()
 
     if ts_str:
         try:
@@ -101,7 +95,7 @@ def extract_facts_from_chunk(
     user_id: str
 ) -> List[Dict[str, Any]]:
     """
-    Extract factual claims from a single chunk using the LLM.
+    Extract factual claims from a single Apple Notes chunk using the LLM.
     Returns a list of claim dicts enriched with source metadata.
     """
     if not utils.llm:
@@ -114,7 +108,7 @@ def extract_facts_from_chunk(
 
     try:
         user_prompt = (
-            f"Document (written around {source_timestamp.strftime('%B %Y')}):\n\n"
+            f"Apple Note (written around {source_timestamp.strftime('%B %Y')}):\n\n"
             f"{chunk_text[:2000]}"
         )
 

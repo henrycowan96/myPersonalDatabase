@@ -1,0 +1,57 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+.pytest_cache
+.coverage
+htmlcov
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+
+# IDE
+.vscode
+.idea
+.claude
+.qodo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data
+data/
+embeddings/
+*.db
+*.sqlite
+
+# Documentation
+docs/
+*.md
+
+# CI/CD
+.github
+
+# Expo/React Native (not needed for API)
+My_Personal_Database_Mobile/
+app 2.json
+app.json
+package.json
+package-lock.json

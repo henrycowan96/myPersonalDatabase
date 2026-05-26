@@ -1,6 +1,7 @@
 """
-Batch fact extraction to reduce LLM costs.
+Batch fact extraction to reduce LLM costs for Apple Notes.
 Groups 3-5 short chunks per LLM call instead of one per call.
+Customized for Apple Notes data source only.
 """
 
 import sys
@@ -47,7 +48,7 @@ def extract_facts_from_batch(chunks: List[Dict], user_id: str) -> List[Dict]:
     
     batch_content = "\n\n".join(chunk_texts)
     
-    prompt = f"""Extract factual claims about the user from these document chunks.
+    prompt = f"""Extract factual claims about the user from these Apple Notes.
 
 {batch_content}
 
@@ -58,6 +59,7 @@ IMPORTANT RULES:
 - REQUIRE confidence >= 0.6
 - Use ONLY these entity categories: {list(ENTITY_CATEGORIES.keys())}
 - Use ONLY these entity keys: {ALL_ENTITY_KEYS}
+- Focus on personal reflections, goals, and self-documentation typical of Apple Notes
 
 For each fact claim, provide:
 - entity_key (from the approved list)

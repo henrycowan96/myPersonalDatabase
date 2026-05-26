@@ -1,6 +1,7 @@
 """
-Insights Engine for Personal Database
-Analyzes user data to detect meaningful patterns, life events, and generate proactive insights
+Insights Engine for Personal Database (Apple Notes)
+Analyzes Apple Notes data to detect meaningful patterns, life events, and generate proactive insights
+Customized for Apple Notes data source only.
 """
 
 from datetime import datetime
@@ -30,13 +31,13 @@ class InsightsEngine:
         self.llm_analyzer = LLMInsightAnalyzer()
     
     def generate_insights(self, documents: List[Dict], user_id: str) -> List[Insight]:
-        """Generate insights from a collection of documents using two-phase approach"""
+        """Generate insights from Apple Notes using two-phase approach"""
         insights = []
         
-        print(f"[INSIGHTS] Starting two-phase insights analysis for {len(documents)} documents")
+        print(f"[INSIGHTS] Starting two-phase insights analysis for {len(documents)} Apple Notes")
         
         # === PHASE 1: Batch Title Analysis ===
-        print("[INSIGHTS] Phase 1: Analyzing document titles for interests and patterns")
+        print("[INSIGHTS] Phase 1: Analyzing Apple Note titles for interests and patterns")
         title_analysis = self.llm_analyzer.analyze_document_titles_batch(documents)
         
         # Generate basic knowledge insights from title analysis
@@ -45,7 +46,7 @@ class InsightsEngine:
             print(f"[INSIGHTS] Phase 1 completed: {len(title_analysis)} categories analyzed")
         
         # === PHASE 2: Deep Document Analysis ===
-        print("[INSIGHTS] Phase 2: Deep analysis of relevant documents")
+        print("[INSIGHTS] Phase 2: Deep analysis of relevant Apple Notes")
         
         # Select documents for deep analysis based on Phase 1 results
         relevant_documents = self._select_documents_for_deep_analysis(documents, title_analysis)
@@ -90,7 +91,7 @@ class InsightsEngine:
         insights.extend(self._generate_trending_insights(scored_documents))
         insights.extend(self._generate_interesting_insights(scored_documents))
         
-        print(f"[INSIGHTS] Two-phase analysis complete: {len(insights)} total insights")
+        print(f"[INSIGHTS] Two-phase analysis complete: {len(insights)} total insights from Apple Notes")
         
         # Sort all insights by significance
         insights.sort(key=lambda x: x.significance_score, reverse=True)
@@ -98,7 +99,7 @@ class InsightsEngine:
         return insights[:20]  # Return top 20 insights
     
     def _generate_knowledge_insights(self, title_analysis: Dict) -> List[Insight]:
-        """Generate insights from title analysis results"""
+        """Generate insights from Apple Notes title analysis results"""
         insights = []
         
         # Generate insights for primary interests
@@ -113,7 +114,7 @@ class InsightsEngine:
                 id=f"knowledge_interest_{hash(interest) % 100000}",
                 category='interesting',
                 title=f"Primary Interest: {interest}",
-                description=f"Based on document titles, you show strong interest in {interest}. {explanation}",
+                description=f"Based on Apple Note titles, you show strong interest in {interest}. {explanation}",
                 significance_score=confidence_score * 0.8,
                 sources=[],
                 detected_at=datetime.now().isoformat(),
@@ -135,7 +136,7 @@ class InsightsEngine:
                 id=f"knowledge_area_{hash(area) % 100000}",
                 category='milestone',
                 title=f"Life Focus Area: {area}",
-                description=f"Your documents indicate significant focus on {area}. {explanation}",
+                description=f"Your Apple Notes indicate significant focus on {area}. {explanation}",
                 significance_score=confidence_score * 0.9,
                 sources=[],
                 detected_at=datetime.now().isoformat(),
@@ -157,7 +158,7 @@ class InsightsEngine:
                 id=f"knowledge_event_{hash(event) % 100000}",
                 category='milestone',
                 title=f"Notable Event: {event}",
-                description=f"Significant event detected from titles: {event}. {explanation}",
+                description=f"Significant event detected from Apple Note titles: {event}. {explanation}",
                 significance_score=significance_score * 1.0,
                 sources=[],
                 detected_at=datetime.now().isoformat(),
@@ -179,7 +180,7 @@ class InsightsEngine:
                 id=f"knowledge_domain_{hash(domain) % 100000}",
                 category='interesting',
                 title=f"Knowledge Domain: {domain}",
-                description=f"You appear to be developing expertise in {domain}. {explanation}",
+                description=f"Your Apple Notes indicate you're developing expertise in {domain}. {explanation}",
                 significance_score=confidence_score * 0.7,
                 sources=[],
                 detected_at=datetime.now().isoformat(),
@@ -192,7 +193,7 @@ class InsightsEngine:
         return insights
     
     def _select_documents_for_deep_analysis(self, documents: List[Dict], title_analysis: Dict) -> List[Dict]:
-        """Select documents for deep analysis based on title analysis results"""
+        """Select Apple Notes for deep analysis based on title analysis results"""
         if not title_analysis:
             # Fallback to original document set if no title analysis
             return documents[:100]  # Limit to prevent excessive processing
@@ -247,12 +248,12 @@ class InsightsEngine:
         # Return top documents for deep analysis, ensuring we have enough
         selected_docs = [item['document'] for item in scored_docs[:80]]
         
-        print(f"[INSIGHTS] Selected {len(selected_docs)} documents for deep analysis based on title analysis")
+        print(f"[INSIGHTS] Selected {len(selected_docs)} Apple Notes for deep analysis based on title analysis")
         
         return selected_docs
     
     def _generate_urgent_insights(self, scored_docs: List[Dict]) -> List[Insight]:
-        """Generate urgent insights from documents"""
+        """Generate urgent insights from Apple Notes"""
         insights = []
         
         for item in scored_docs[:20]:  # Check top 20
@@ -263,7 +264,7 @@ class InsightsEngine:
                 insight = Insight(
                     id=f"urgent_{hash(metadata.get('text', '')) % 100000}",
                     category='urgent',
-                    title=f"Urgent: {metadata.get('source', 'Document').title()}",
+                    title=f"Urgent: {metadata.get('note_name', 'Apple Note')}",
                     description=f"Contains urgent keywords. {metadata.get('text', '')[:100]}...",
                     significance_score=item['score'] * 1.2,
                     sources=[doc],
@@ -488,7 +489,7 @@ class InsightsEngine:
         return insights
     
     def _generate_interesting_insights(self, scored_docs: List[Dict]) -> List[Insight]:
-        """Generate interesting insights from high-scoring documents"""
+        """Generate interesting insights from high-scoring Apple Notes"""
         insights = []
         
         for item in scored_docs[20:60]:  # Check documents 20-60
@@ -499,7 +500,7 @@ class InsightsEngine:
                 insight = Insight(
                     id=f"interesting_{hash(metadata.get('text', '')) % 100000}",
                     category='interesting',
-                    title=f"Notable: {metadata.get('source', 'Document').title()}",
+                    title=f"Notable: {metadata.get('note_name', 'Apple Note')}",
                     description=metadata.get('text', '')[:150] + "...",
                     significance_score=item['score'] * 0.8,
                     sources=[doc],
@@ -515,10 +516,10 @@ class InsightsEngine:
 
 def analyze_documents_for_insights(documents: List[Dict], user_id: str) -> List[Dict]:
     """
-    Convenience function to analyze documents and return insights as dictionaries.
+    Convenience function to analyze Apple Notes and return insights as dictionaries.
     
     Args:
-        documents: List of document dictionaries with metadata
+        documents: List of Apple Note dictionaries with metadata
         user_id: User identifier
     
     Returns:

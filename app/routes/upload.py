@@ -327,84 +327,85 @@ async def upload_documents(request: UploadDocumentsRequest, background_tasks: Ba
         # Fetch data based on permissions that need upload
         results = {}
 
-        if permissions_to_upload.get("appleCalendar"):
-            print(f"[UPLOAD] Processing appleCalendar permission (NEW)...")
-            try:
-                calendar_response = await fetch_apple_calendar(request.apple_calendar_email, request.apple_calendar_password)
-                events_data = calendar_response["events"]
-                count = await process_and_ingest_data(request.user_id, 'apple_calendar', events_data, pinecone_index_name)
-                results['appleCalendar'] = count
-                print(f"[UPLOAD] Apple Calendar processing complete: {count} documents")
-            except Exception as e:
-                print(f"[UPLOAD] ERROR fetching apple calendar: {e}")
-                import traceback
-                traceback.print_exc()
-                results['appleCalendar'] = 0
-        elif request.permissions.get("appleCalendar"):
-            print(f"[UPLOAD] Skipping appleCalendar (data already uploaded)")
+        # All data sources disabled except Apple Notes
+        # if permissions_to_upload.get("appleCalendar"):
+        #     print(f"[UPLOAD] Processing appleCalendar permission (NEW)...")
+        #     try:
+        #         calendar_response = await fetch_apple_calendar(request.apple_calendar_email, request.apple_calendar_password)
+        #         events_data = calendar_response["events"]
+        #         count = await process_and_ingest_data(request.user_id, 'apple_calendar', events_data, pinecone_index_name)
+        #         results['appleCalendar'] = count
+        #         print(f"[UPLOAD] Apple Calendar processing complete: {count} documents")
+        #     except Exception as e:
+        #         print(f"[UPLOAD] ERROR fetching apple calendar: {e}")
+        #         import traceback
+        #         traceback.print_exc()
+        #         results['appleCalendar'] = 0
+        # elif request.permissions.get("appleCalendar"):
+        #     print(f"[UPLOAD] Skipping appleCalendar (data already uploaded)")
 
-        if permissions_to_upload.get("calendar"):
-            print(f"[UPLOAD] Processing Google Calendar permission (NEW)...")
-            try:
-                # Check if OAuth token exists before attempting to fetch
-                if not has_oauth_token(request.user_id, 'calendar'):
-                    print(f"[UPLOAD] No OAuth token found for Google Calendar, skipping. User needs to authorize via /auth/calendar endpoint.")
-                    results['calendar'] = 0
-                else:
-                    creds = get_user_credentials(request.user_id, 'calendar')
-                    calendar_data = await fetch_calendar_data(request.user_id, creds)
-                    count = await process_and_ingest_data(request.user_id, 'google_calendar', calendar_data, pinecone_index_name)
-                    results['calendar'] = count
-                    print(f"[UPLOAD] Google Calendar processing complete: {count} documents")
-            except Exception as e:
-                print(f"[UPLOAD] ERROR fetching google calendar: {e}")
-                import traceback
-                traceback.print_exc()
-                results['calendar'] = 0
-        elif request.permissions.get("calendar"):
-            print(f"[UPLOAD] Skipping calendar (data already uploaded)")
+        # if permissions_to_upload.get("calendar"):
+        #     print(f"[UPLOAD] Processing Google Calendar permission (NEW)...")
+        #     try:
+        #         # Check if OAuth token exists before attempting to fetch
+        #         if not has_oauth_token(request.user_id, 'calendar'):
+        #             print(f"[UPLOAD] No OAuth token found for Google Calendar, skipping. User needs to authorize via /auth/calendar endpoint.")
+        #             results['calendar'] = 0
+        #         else:
+        #             creds = get_user_credentials(request.user_id, 'calendar')
+        #             calendar_data = await fetch_calendar_data(request.user_id, creds)
+        #             count = await process_and_ingest_data(request.user_id, 'google_calendar', calendar_data, pinecone_index_name)
+        #             results['calendar'] = count
+        #             print(f"[UPLOAD] Google Calendar processing complete: {count} documents")
+        #     except Exception as e:
+        #         print(f"[UPLOAD] ERROR fetching google calendar: {e}")
+        #         import traceback
+        #         traceback.print_exc()
+        #         results['calendar'] = 0
+        # elif request.permissions.get("calendar"):
+        #     print(f"[UPLOAD] Skipping calendar (data already uploaded)")
 
-        if permissions_to_upload.get("email"):
-            print(f"[UPLOAD] Processing email permission (NEW)...")
-            try:
-                # Check if OAuth token exists before attempting to fetch
-                if not has_oauth_token(request.user_id, 'gmail'):
-                    print(f"[UPLOAD] No OAuth token found for Gmail, skipping. User needs to authorize via /auth/gmail endpoint.")
-                    results['email'] = 0
-                else:
-                    creds = get_user_credentials(request.user_id, 'gmail')
-                    gmail_data = await fetch_gmail_data(request.user_id, creds)
-                    count = await process_and_ingest_data(request.user_id, 'gmail', gmail_data, pinecone_index_name)
-                    results['email'] = count
-                    print(f"[UPLOAD] Gmail processing complete: {count} documents")
-            except Exception as e:
-                print(f"[UPLOAD] ERROR fetching gmail: {e}")
-                import traceback
-                traceback.print_exc()
-                results['email'] = 0
-        elif request.permissions.get("email"):
-            print(f"[UPLOAD] Skipping email (data already uploaded)")
+        # if permissions_to_upload.get("email"):
+        #     print(f"[UPLOAD] Processing email permission (NEW)...")
+        #     try:
+        #         # Check if OAuth token exists before attempting to fetch
+        #         if not has_oauth_token(request.user_id, 'gmail'):
+        #             print(f"[UPLOAD] No OAuth token found for Gmail, skipping. User needs to authorize via /auth/gmail endpoint.")
+        #             results['email'] = 0
+        #         else:
+        #             creds = get_user_credentials(request.user_id, 'gmail')
+        #             gmail_data = await fetch_gmail_data(request.user_id, creds)
+        #             count = await process_and_ingest_data(request.user_id, 'gmail', gmail_data, pinecone_index_name)
+        #             results['email'] = count
+        #             print(f"[UPLOAD] Gmail processing complete: {count} documents")
+        #     except Exception as e:
+        #         print(f"[UPLOAD] ERROR fetching gmail: {e}")
+        #         import traceback
+        #         traceback.print_exc()
+        #         results['email'] = 0
+        # elif request.permissions.get("email"):
+        #     print(f"[UPLOAD] Skipping email (data already uploaded)")
 
-        if permissions_to_upload.get("googleDrive"):
-            print(f"[UPLOAD] Processing googleDrive permission (NEW)...")
-            try:
-                # Check if OAuth token exists before attempting to fetch
-                if not has_oauth_token(request.user_id, 'google_drive'):
-                    print(f"[UPLOAD] No OAuth token found for Google Drive, skipping. User needs to authorize via /auth/google_drive endpoint.")
-                    results['googleDrive'] = 0
-                else:
-                    creds = get_user_credentials(request.user_id, 'google_drive')
-                    drive_data = await fetch_google_drive_data(request.user_id, creds)
-                    count = await process_and_ingest_data(request.user_id, 'google_drive', drive_data, pinecone_index_name)
-                    results['googleDrive'] = count
-                    print(f"[UPLOAD] Google Drive processing complete: {count} documents")
-            except Exception as e:
-                print(f"[UPLOAD] ERROR fetching google drive: {e}")
-                import traceback
-                traceback.print_exc()
-                results['googleDrive'] = 0
-        elif request.permissions.get("googleDrive"):
-            print(f"[UPLOAD] Skipping googleDrive (data already uploaded)")
+        # if permissions_to_upload.get("googleDrive"):
+        #     print(f"[UPLOAD] Processing googleDrive permission (NEW)...")
+        #     try:
+        #         # Check if OAuth token exists before attempting to fetch
+        #         if not has_oauth_token(request.user_id, 'google_drive'):
+        #             print(f"[UPLOAD] No OAuth token found for Google Drive, skipping. User needs to authorize via /auth/google_drive endpoint.")
+        #             results['googleDrive'] = 0
+        #         else:
+        #             creds = get_user_credentials(request.user_id, 'google_drive')
+        #             drive_data = await fetch_google_drive_data(request.user_id, creds)
+        #             count = await process_and_ingest_data(request.user_id, 'google_drive', drive_data, pinecone_index_name)
+        #             results['googleDrive'] = count
+        #             print(f"[UPLOAD] Google Drive processing complete: {count} documents")
+        #     except Exception as e:
+        #         print(f"[UPLOAD] ERROR fetching google drive: {e}")
+        #         import traceback
+        #         traceback.print_exc()
+        #         results['googleDrive'] = 0
+        # elif request.permissions.get("googleDrive"):
+        #     print(f"[UPLOAD] Skipping googleDrive (data already uploaded)")
 
         if permissions_to_upload.get("notes"):
             print(f"[UPLOAD] Processing notes permission (NEW)...")
@@ -423,31 +424,32 @@ async def upload_documents(request: UploadDocumentsRequest, background_tasks: Ba
         elif request.permissions.get("notes"):
             print(f"[UPLOAD] Skipping notes (data already uploaded)")
 
-        if permissions_to_upload.get("appleMusic"):
-            print(f"[UPLOAD] Processing appleMusic permission (NEW)...")
-            try:
-                # Apple Music requires developer credentials (key_id, team_id, private_key_path)
-                # These would need to be stored in user settings or environment variables
-                # For now, we'll check if they're available in environment
-                key_id = os.getenv("APPLE_MUSIC_KEY_ID")
-                team_id = os.getenv("APPLE_MUSIC_TEAM_ID")
-                private_key_path = os.getenv("APPLE_MUSIC_PRIVATE_KEY_PATH")
-                
-                if key_id and team_id and private_key_path:
-                    music_data = await fetch_apple_music_data(key_id, team_id, private_key_path)
-                    count = await process_and_ingest_data(request.user_id, 'apple_music', music_data, pinecone_index_name)
-                    results['appleMusic'] = count
-                    print(f"[UPLOAD] Apple Music processing complete: {count} documents")
-                else:
-                    print(f"[UPLOAD] Apple Music credentials not found in environment, skipping")
-                    results['appleMusic'] = 0
-            except Exception as e:
-                print(f"[UPLOAD] ERROR fetching apple music: {e}")
-                import traceback
-                traceback.print_exc()
-                results['appleMusic'] = 0
-        elif request.permissions.get("appleMusic"):
-            print(f"[UPLOAD] Skipping appleMusic (data already uploaded)")
+        # Apple Music disabled - only Apple Notes supported
+        # if permissions_to_upload.get("appleMusic"):
+        #     print(f"[UPLOAD] Processing appleMusic permission (NEW)...")
+        #     try:
+        #         # Apple Music requires developer credentials (key_id, team_id, private_key_path)
+        #         # These would need to be stored in user settings or environment variables
+        #         # For now, we'll check if they're available in environment
+        #         key_id = os.getenv("APPLE_MUSIC_KEY_ID")
+        #         team_id = os.getenv("APPLE_MUSIC_TEAM_ID")
+        #         private_key_path = os.getenv("APPLE_MUSIC_PRIVATE_KEY_PATH")
+        #         
+        #         if key_id and team_id and private_key_path:
+        #             music_data = await fetch_apple_music_data(key_id, team_id, private_key_path)
+        #             count = await process_and_ingest_data(request.user_id, 'apple_music', music_data, pinecone_index_name)
+        #             results['appleMusic'] = count
+        #             print(f"[UPLOAD] Apple Music processing complete: {count} documents")
+        #         else:
+        #             print(f"[UPLOAD] Apple Music credentials not found in environment, skipping")
+        #             results['appleMusic'] = 0
+        #     except Exception as e:
+        #         print(f"[UPLOAD] ERROR fetching apple music: {e}")
+        #         import traceback
+        #         traceback.print_exc()
+        #         results['appleMusic'] = 0
+        # elif request.permissions.get("appleMusic"):
+        #     print(f"[UPLOAD] Skipping appleMusic (data already uploaded)")
 
         # Update uploaded_data_sources to mark both successfully uploaded and attempted data sources
         # This prevents infinite loops when uploads fail

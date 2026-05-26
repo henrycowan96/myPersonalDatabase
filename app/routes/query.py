@@ -121,8 +121,10 @@ async def query_documents(request: QueryRequest):
 
         # Build persona snapshot from structured facts
         persona_block = ""
+        notes_count = 0
         if request.user_id and utils.supabase:
             try:
+                # Get facts for persona
                 facts_res = utils.supabase.table("facts").select("entity_key,value,last_confirmed_at").eq("user_id", request.user_id).eq("is_current", True).order("entity_category").order("entity_key").execute()
                 if facts_res.data:
                     lines = []
@@ -134,27 +136,40 @@ async def query_documents(request: QueryRequest):
                             ts_display = "unknown"
                         lines.append(f"- {f['entity_key']}: {f['value']} (as of {ts_display})")
                     persona_block = "Current known facts about this person:\n" + "\n".join(lines) + "\n\n"
+                
+                # Get count of Apple Notes ingested
+                notes_res = utils.supabase.table("ingested_chunks").select("id", count="exact").eq("user_id", request.user_id).eq("source_type", "apple_notes").eq("is_deleted", False).execute()
+                notes_count = notes_res.count or 0
             except Exception as e:
                 print(f"[QUERY] Error fetching persona snapshot: {e}")
 
+        # Determine routing decision
+        routing_decision = "knowledge" if context_parts else "general"
+        routing_reason = "Found relevant documents in knowledge base" if context_parts else "No relevant documents found, using general conversation"
+
         # Generate answer using LLM with improved prompt
         if utils.llm and context_parts:
-            prompt = f"""You are a precise, factual assistant that answers questions based ONLY on the provided context.
+            # Check if this is the first message in a new session (no conversation history)
+            is_first_message = not request.conversation_history or len(request.conversation_history) == 0
+            
+            prompt = f"""You are a precise, factual assistant that answers questions about the user based ONLY on the provided context.
 
 IMPORTANT: All information in the context below is from the user's personal perspective. When interpreting events, actions, communications, or any data, assume it reflects the user's own experiences, activities, and information. For example:
 - "sent an email" means the user sent it
 - "meeting with X" means the user attended the meeting
 - "purchased Y" means the user made the purchase
-- Any references to "I", "my", or personal activities refer to the user
+- Any references to "I", "my", or personal activities in the context refer to the user
 
 INSTRUCTIONS:
 - Answer the question using the given context
 - Interpret all context as the user's personal information and experiences
+- Always refer to the user as "you" or "your" - never as "I" or "my"
 - If the answer is not in the context, state "I don't have enough information to answer this"
 - Be specific and cite relevant details
 - Do not make up or infer information beyond what's provided
 - Keep answers concise and well-structured
 - Use conversation history to understand context, but base factual answers on the provided document context
+- Always consider the persona facts when answering to provide contextually relevant responses
 {conversation_context}
 
 {persona_block}CONTEXT (from {len(context_parts)} sources):
@@ -165,6 +180,11 @@ QUESTION: {request.question}
 ANSWER:"""
 
             answer = utils.llm.invoke(prompt).content
+            
+            # Add greeting for first message
+            if is_first_message:
+                greeting = f"I've read {notes_count} of your Apple Notes and am ready to discuss them. "
+                answer = greeting + answer
         else:
             if not utils.llm:
                 print(f"[QUERY] LLM not initialized")
@@ -172,7 +192,7 @@ ANSWER:"""
                 print(f"[QUERY] No context parts found. Matches: {len(results.get('matches', []))}, Filtered: {len(filtered_matches)}")
             answer = "No LLM configured or no relevant documents found. Here are the relevant document excerpts:\n\n" + "\n\n".join(context_parts)
 
-        return QueryResponse(answer=answer, sources=sources)
+        return QueryResponse(answer=answer, sources=sources, routing_decision=routing_decision, routing_reason=routing_reason)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -278,8 +298,10 @@ async def query_by_relationships(request: RelationshipQueryRequest):
 
         # Build persona snapshot from structured facts
         persona_block = ""
+        notes_count = 0
         if request.user_id and utils.supabase:
             try:
+                # Get facts for persona
                 facts_res = utils.supabase.table("facts").select("entity_key,value,last_confirmed_at").eq("user_id", request.user_id).eq("is_current", True).order("entity_category").order("entity_key").execute()
                 if facts_res.data:
                     lines = []
@@ -291,21 +313,31 @@ async def query_by_relationships(request: RelationshipQueryRequest):
                             ts_display = "unknown"
                         lines.append(f"- {f['entity_key']}: {f['value']} (as of {ts_display})")
                     persona_block = "Current known facts about this person:\n" + "\n".join(lines) + "\n\n"
+                
+                # Get count of Apple Notes ingested
+                notes_res = utils.supabase.table("ingested_chunks").select("id", count="exact").eq("user_id", request.user_id).eq("source_type", "apple_notes").eq("is_deleted", False).execute()
+                notes_count = notes_res.count or 0
             except Exception as e:
                 print(f"[QUERY-REL] Error fetching persona snapshot: {e}")
 
         # Generate answer using LLM if question provided
         if request.question and utils.llm and context_parts:
             context = "\n\n".join(context_parts)
-            prompt = f"""You are a helpful assistant that answers questions based on the provided context.
+            
+            # Check if this is the first message in a new session (no conversation history)
+            is_first_message = not request.conversation_history or len(request.conversation_history) == 0
+            
+            prompt = f"""You are a helpful assistant that answers questions about the user based on the provided context.
 
 IMPORTANT: All information in the context below is from the user's personal perspective. When interpreting events, actions, communications, or any data, assume it reflects the user's own experiences, activities, and information. For example:
 - "sent an email" means the user sent it
 - "meeting with X" means the user attended the meeting
 - "purchased Y" means the user made the purchase
-- Any references to "I", "my", or personal activities refer to the user
+- Any references to "I", "my", or personal activities in the context refer to the user
 
 Use the following pieces of context to answer the question at the end. If you don't know the answer based on the context, just say that you don't know, don't try to make up an answer.
+- Always refer to the user as "you" or "your" - never as "I" or "my"
+- Always consider the persona facts when answering to provide contextually relevant responses
 {conversation_context}
 
 {persona_block}Context: {context}
@@ -315,6 +347,11 @@ Question: {request.question}
 Answer:"""
             
             answer = utils.llm.invoke(prompt).content
+            
+            # Add greeting for first message
+            if is_first_message:
+                greeting = f"I've read {notes_count} of your Apple Notes and am ready to discuss them. "
+                answer = greeting + answer
         elif context_parts:
             answer = f"Found {len(sources)} related documents based on filters: {filters_applied}"
         else:

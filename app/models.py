@@ -12,6 +12,8 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     answer: str
     sources: List[dict]
+    routing_decision: Optional[str] = None
+    routing_reason: Optional[str] = None
 
 
 class DocumentResponse(BaseModel):

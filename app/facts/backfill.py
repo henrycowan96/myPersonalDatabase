@@ -1,6 +1,7 @@
 """
-One-time backfill job to extract facts from existing ingested_chunks.
+One-time backfill job to extract facts from existing Apple Notes chunks.
 Run this after the fact pipeline is deployed but before deprecating regex detection.
+Customized for Apple Notes data source only.
 """
 
 import asyncio
@@ -18,27 +19,27 @@ from facts.pipeline import process_extracted_claim
 
 
 async def run_backfill_for_user(user_id: str, batch_size: int = 50, daily_limit: int = 200):
-    """Run fact extraction over all existing ingested_chunks for a user"""
+    """Run fact extraction over all existing Apple Notes chunks for a user"""
     if not utils.supabase:
         print("[BACKFILL] Supabase not available")
         return
     
-    print(f"[BACKFILL] Starting backfill for user {user_id}")
+    print(f"[BACKFILL] Starting backfill for user {user_id} (Apple Notes only)")
     
-    # Get all ingested chunks for this user that haven't been processed for facts
+    # Get all Apple Notes chunks for this user that haven't been processed for facts
     # We'll track processed chunks in a separate table or metadata to avoid re-processing
     try:
-        # First, let's see what chunks exist
+        # First, let's see what Apple Notes chunks exist
         chunks_result = utils.supabase.table("ingested_chunks").select(
             "id", "source_type", "source_id", "content_preview", "metadata", "ingested_at"
-        ).eq("user_id", user_id).eq("is_deleted", False).order("ingested_at", desc=True).execute()
+        ).eq("user_id", user_id).eq("source_type", "apple_notes").eq("is_deleted", False).order("ingested_at", desc=True).execute()
         
         if not chunks_result.data:
-            print(f"[BACKFILL] No chunks found for user {user_id}")
+            print(f"[BACKFILL] No Apple Notes chunks found for user {user_id}")
             return
         
         total_chunks = len(chunks_result.data)
-        print(f"[BACKFILL] Found {total_chunks} chunks to process")
+        print(f"[BACKFILL] Found {total_chunks} Apple Notes chunks to process")
         
         # Process in batches to avoid overwhelming the LLM
         processed = 0

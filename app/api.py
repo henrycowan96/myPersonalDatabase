@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from routes import query, chat, user, auth, ingestion, upload, apple_ingestion, google_ingestion, spotify_ingestion, insights, llm_thoughts, chat_context, cleanup, timeline
+from routes import query, chat, user, auth, ingestion, upload, apple_ingestion, insights, llm_thoughts, chat_context, cleanup, timeline
 import utils
 
 # Create FastAPI app with lifespan
@@ -37,8 +37,8 @@ app.include_router(user.router)
 app.include_router(auth.router)
 app.include_router(ingestion.router)
 app.include_router(apple_ingestion.router)
-app.include_router(google_ingestion.router)
-app.include_router(spotify_ingestion.router)
+# app.include_router(google_ingestion.router)  # Disabled - only Apple Notes supported
+# app.include_router(spotify_ingestion.router)  # Disabled - only Apple Notes supported
 app.include_router(upload.router)
 app.include_router(insights.router)
 app.include_router(llm_thoughts.router)
@@ -59,6 +59,19 @@ async def health_check():
         "openrouter_loaded": utils.llm is not None,
         "supabase_connected": utils.supabase is not None
     }
+
+@app.get("/notes-count")
+async def get_notes_count(user_id: str):
+    """Get the count of Apple Notes ingested for a user"""
+    if not utils.supabase:
+        return {"count": 0}
+    
+    try:
+        notes_res = utils.supabase.table("ingested_chunks").select("id", count="exact").eq("user_id", user_id).eq("source_type", "apple_notes").eq("is_deleted", False).execute()
+        return {"count": notes_res.count or 0}
+    except Exception as e:
+        print(f"Error fetching notes count: {e}")
+        return {"count": 0}
 
 if __name__ == "__main__":
     import uvicorn

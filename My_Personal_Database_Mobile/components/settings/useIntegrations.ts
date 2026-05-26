@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Platform, Linking, Animated } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import axios from 'axios';
@@ -1328,6 +1329,11 @@ export const useIntegrations = (user: any) => {
               await axios.post(`${API_URL}/reset-user-database`, {
                 user_id: user.id,
               });
+
+              // Clear AsyncStorage cache for the user
+              await AsyncStorage.removeItem(`insights_${user.id}`);
+              await AsyncStorage.removeItem(`thoughts_${user.id}`);
+              await AsyncStorage.removeItem(`categories_${user.id}`);
 
               setIntegrations(defaultIntegrations);
               Alert.alert('SUCCESS', 'All data has been deleted. Your database has been reset.');

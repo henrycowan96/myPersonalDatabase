@@ -10,6 +10,7 @@ import {
   Platform,
   TouchableOpacity,
   Text,
+  ActivityIndicator,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import axios from 'axios';
@@ -34,6 +35,7 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState<string>('');
   const [initialLoading, setInitialLoading] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [routingDecision, setRoutingDecision] = useState<string | null>(null);
   const [routingReason, setRoutingReason] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
@@ -117,6 +119,8 @@ export default function ChatScreen() {
       setRoutingDecision(null);
       setRoutingReason(null);
       setInitialPromptConsumed(false);
+      setChatHistory([]); // Clear chat history before loading new session
+      setGreetingVisible(false); // Hide greeting when loading a session
       // Clear the sessionId param after consuming it
       router.setParams({ sessionId: undefined } as any);
     }
@@ -228,13 +232,18 @@ export default function ChatScreen() {
       return;
     }
     try {
+      setLoadingHistory(true);
       const response = await axios.post(`${API_URL}/chat-history/load`, {
         user_id: user.id,
         session_id: sessionId
       });
+      console.log('Loaded chat history:', response.data);
       setChatHistory(response.data.messages || []);
     } catch (error) {
       console.error('Error loading chat history:', error);
+      setChatHistory([]);
+    } finally {
+      setLoadingHistory(false);
     }
   };
 
@@ -392,7 +401,12 @@ export default function ChatScreen() {
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
           showsVerticalScrollIndicator={false}
         >
-          {chatHistory.length === 0 ? (
+          {loadingHistory ? (
+            <View style={{ padding: 20, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color="#9333ea" />
+              <Text style={{ color: '#94a3b8', fontSize: 14, marginTop: 8 }}>Loading chat history...</Text>
+            </View>
+          ) : chatHistory.length === 0 ? (
             <WelcomeScreen iconSource={require('../../assets/images/adaptive-icon.png')} />
           ) : (
             chatHistory.map((message, index) => (
@@ -407,7 +421,7 @@ export default function ChatScreen() {
               />
             ))
           )}
-          
+
           {loading && (
             <LoadingIndicator
               loadingStage={loadingStage}
