@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from '../lib/supabase';
 import { Session } from '@supabase/supabase-js';
-import { View, ActivityIndicator, AppState } from 'react-native';
+import { View, ActivityIndicator, AppState, Animated } from 'react-native';
 import { ThemeProvider, DarkTheme, DefaultTheme } from '@react-navigation/native';
 import { useColorScheme } from '@/components/useColorScheme';
 import axios from 'axios';
@@ -60,10 +60,19 @@ export default function RootLayout() {
 
   const fetchUserSettings = async (userId: string): Promise<number> => {
     const response = await axios.get(`${API_URL}/user-settings/${userId}`);
+    // If pinecone_index is null, user doesn't have a database, return step 1
+    if (!response.data.pinecone_index) {
+      return 1;
+    }
     return response.data.setup_step || 1;
   };
 
   const checkSetupStatus = async (userId: string) => {
+    // If setup is already complete (setup_step >= 4), don't check again
+    if (setupStep !== null && setupStep >= 4) {
+      return;
+    }
+
     // Check localStorage for skip flag set by setup screen
     try {
       const skipUntilStr = localStorage.getItem('skipSetupCheckUntil');
@@ -174,33 +183,72 @@ export default function RootLayout() {
         router.replace('/login');
       }
     } else {
+      // Only send to setup if setup_step is less than 4 (incomplete)
+      // setup_step 1 = initial state (new user)
+      // setup_step 4 = completed
       if (setupStep !== null && setupStep < 4) {
         if (!inSetupGroup) {
           router.replace('/setup');
         }
-      } else if (inAuthGroup || inSetupGroup) {
-        router.replace('/');
+      } else {
+        // Setup complete or not applicable, send to main app
+        if (inAuthGroup || inSetupGroup) {
+          router.replace('/');
+        }
       }
     }
   }, [session, segments, initialized, setupStep]);
 
   if (!initialized) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-        <ActivityIndicator size="large" color="#9333ea" />
-      </View>
+      <AnimatedSplashScreen />
     );
   }
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+          animationDuration: 300,
+        }}
+      >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="setup" options={{ headerShown: false }} />
-        <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="login" options={{ headerShown: false, animation: 'fade' }} />
+        <Stack.Screen name="setup" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="auth/callback" options={{ headerShown: false, animation: 'fade' }} />
+        <Stack.Screen name="modal" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       </Stack>
     </ThemeProvider>
+  );
+}
+
+function AnimatedSplashScreen() {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }] }}>
+        <ActivityIndicator size="large" color="#9333ea" />
+      </Animated.View>
+    </View>
   );
 }

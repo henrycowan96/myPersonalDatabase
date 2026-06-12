@@ -1348,6 +1348,47 @@ export const useIntegrations = (user: any) => {
     );
   };
 
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      'WARNING: PERMANENT ACCOUNT DELETION',
+      'This will permanently delete your account, all your data, and remove you from Supabase. This action cannot be undone. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: async () => {
+            setLoading((prev) => ({ ...prev, deleteAccount: true }));
+            try {
+              // Call the new delete-account endpoint which handles Pinecone deletion and Supabase auth deletion
+              await axios.post(`${API_URL}/auth/delete-account`, null, {
+                params: { user_id: user.id }
+              });
+
+              // Clear AsyncStorage cache for the user
+              await AsyncStorage.removeItem(`insights_${user.id}`);
+              await AsyncStorage.removeItem(`thoughts_${user.id}`);
+              await AsyncStorage.removeItem(`categories_${user.id}`);
+
+              // Sign out from Supabase
+              await supabase.auth.signOut();
+
+              setIntegrations(defaultIntegrations);
+              Alert.alert('SUCCESS', 'Your account has been permanently deleted.');
+            } catch (error) {
+              console.error('Delete account error:', error);
+              // Even if deletion fails, sign out the user
+              await supabase.auth.signOut();
+              Alert.alert('ERROR', 'There was an error deleting your account. You have been signed out.');
+            } finally {
+              setLoading((prev) => ({ ...prev, deleteAccount: false }));
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return {
     integrations,
     loading,
@@ -1356,5 +1397,6 @@ export const useIntegrations = (user: any) => {
     toggleIntegration,
     handleLogout,
     handleClearData,
+    handleDeleteAccount,
   };
 };

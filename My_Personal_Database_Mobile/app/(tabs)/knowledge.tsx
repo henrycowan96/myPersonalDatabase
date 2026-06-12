@@ -156,12 +156,12 @@ export default function KnowledgeScreen() {
       return thoughtDate > latest ? thoughtDate : latest;
     }, new Date(thoughts[0].generated_at));
 
-    // Only include thoughts from the most recent run (within 5 minute window)
-    const fiveMinuteMs = 5 * 60 * 1000;
+    // Only include thoughts from the most recent run (within 1 hour window)
+    const oneHourMs = 60 * 60 * 1000;
     return thoughts.filter(thought => {
       const thoughtDate = new Date(thought.generated_at);
       const timeDiff = Math.abs(mostRecentTimestamp.getTime() - thoughtDate.getTime());
-      return timeDiff <= fiveMinuteMs;
+      return timeDiff <= oneHourMs;
     });
   };
 

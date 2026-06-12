@@ -319,6 +319,9 @@ export default function SetupScreen() {
                 permissions: apiPermissions
               });
 
+              // Wait a moment for background tasks to start
+              await new Promise(resolve => setTimeout(resolve, 2000));
+
               // Update setup_step to 4 to mark setup as complete
               await axios.post(`${API_URL}/save-permissions`, {
                 user_id: user.id,

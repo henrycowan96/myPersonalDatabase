@@ -22,6 +22,7 @@ export default function SettingsPage() {
     toggleIntegration,
     handleLogout,
     handleClearData,
+    handleDeleteAccount,
   } = useIntegrations(user);
 
   if (initialLoading) {
@@ -41,6 +42,7 @@ export default function SettingsPage() {
       toggleIntegration={toggleIntegration}
       handleLogout={handleLogout}
       handleClearData={handleClearData}
+      handleDeleteAccount={handleDeleteAccount}
     />
   );
 }

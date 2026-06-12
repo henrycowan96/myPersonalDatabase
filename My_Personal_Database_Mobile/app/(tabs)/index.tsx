@@ -46,9 +46,7 @@ export default function ChatScreen() {
   const healthCheckRef = useRef<{ timeout: ReturnType<typeof setTimeout> | null; checked: boolean }>({ timeout: null, checked: false });
   const [selectedSource, setSelectedSource] = useState<any>(null);
   const [sourceModalVisible, setSourceModalVisible] = useState(false);
-  const [greetingVisible, setGreetingVisible] = useState(false);
-  const [greetingText, setGreetingText] = useState('');
-  const greetingSlideAnim = useRef(new Animated.Value(300)).current;
+  const [hasData, setHasData] = useState<boolean>(false);
 
   const getSourceTitle = (source: any) => {
     if (!source || !source.metadata) return 'Source Document';
@@ -109,6 +107,25 @@ export default function ChatScreen() {
   }, []);
 
   useEffect(() => {
+    // Check if user has data connected
+    if (user) {
+      axios.get(`${API_URL}/user-settings/${user.id}`)
+        .then(response => {
+          const permissions = response.data.permissions || {};
+          const hasAnyData = permissions.notes || 
+                              permissions.calendar || 
+                              permissions.email || 
+                              permissions.googleDrive;
+          setHasData(hasAnyData);
+        })
+        .catch(error => {
+          console.error('Error fetching user settings:', error);
+          setHasData(false);
+        });
+    }
+  }, [user]);
+
+  useEffect(() => {
     // If session_id is passed in params, use it and clear the param
     if (params.sessionId && params.sessionId !== sessionId) {
       setSessionId(params.sessionId as string);
@@ -120,7 +137,6 @@ export default function ChatScreen() {
       setRoutingReason(null);
       setInitialPromptConsumed(false);
       setChatHistory([]); // Clear chat history before loading new session
-      setGreetingVisible(false); // Hide greeting when loading a session
       // Clear the sessionId param after consuming it
       router.setParams({ sessionId: undefined } as any);
     }
@@ -156,41 +172,6 @@ export default function ChatScreen() {
     }
   }, [user, sessionId]);
 
-  useEffect(() => {
-    // Show initial greeting when chat is empty and user is loaded
-    const showInitialGreeting = async () => {
-      if (user && chatHistory.length === 0 && !isKnowledgeSession) {
-        try {
-          const response = await axios.get(`${API_URL}/notes-count`, {
-            params: { user_id: user.id }
-          });
-          const notesCount = response.data.count || 0;
-          const greeting = `I've read ${notesCount} of your Apple Notes and am ready to discuss them.`;
-          setGreetingText(greeting);
-          setGreetingVisible(true);
-          // Animate slide up
-          Animated.timing(greetingSlideAnim, {
-            toValue: 0,
-            duration: 500,
-            useNativeDriver: true,
-          }).start();
-        } catch (error) {
-          console.error('Error fetching notes count:', error);
-          // Fallback greeting if count fetch fails
-          const greeting = `I've read your Apple Notes and am ready to discuss them.`;
-          setGreetingText(greeting);
-          setGreetingVisible(true);
-          Animated.timing(greetingSlideAnim, {
-            toValue: 0,
-            duration: 500,
-            useNativeDriver: true,
-          }).start();
-        }
-      }
-    };
-    
-    showInitialGreeting();
-  }, [user, chatHistory.length, isKnowledgeSession]);
 
   const fetchHealth = async (): Promise<string> => {
     const response = await axios.get(`${API_URL}/health`);
@@ -285,8 +266,6 @@ export default function ChatScreen() {
     setQuery('');
     setIsKnowledgeSession(false);
     setInitialPromptConsumed(false);
-    setGreetingVisible(false);
-    greetingSlideAnim.setValue(300);
     // Clear any lingering params
     router.setParams({ 
       initialPrompt: undefined, 
@@ -297,15 +276,6 @@ export default function ChatScreen() {
 
   const handleQuery = async () => {
     if (!query.trim() || !user) return;
-
-    // Hide greeting modal when user starts typing
-    if (greetingVisible) {
-      Animated.timing(greetingSlideAnim, {
-        toValue: 300,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => setGreetingVisible(false));
-    }
 
     const userMessage = { role: 'user', content: query };
     const newHistory = [...chatHistory, userMessage];
@@ -392,6 +362,7 @@ export default function ChatScreen() {
         <ChatHeader
           onNewChat={handleNewChat}
           onClearHistory={() => setChatHistory([])}
+          hasData={hasData}
         />
 
         <ScrollView
@@ -407,7 +378,13 @@ export default function ChatScreen() {
               <Text style={{ color: '#94a3b8', fontSize: 14, marginTop: 8 }}>Loading chat history...</Text>
             </View>
           ) : chatHistory.length === 0 ? (
-            <WelcomeScreen iconSource={require('../../assets/images/adaptive-icon.png')} />
+            <WelcomeScreen 
+              iconSource={require('../../assets/images/adaptive-icon.png')} 
+              onSuggestionPress={(suggestion) => {
+                setQuery(suggestion);
+                setTimeout(() => handleQuery(), 100);
+              }}
+            />
           ) : (
             chatHistory.map((message, index) => (
               <ChatMessage
@@ -446,29 +423,6 @@ export default function ChatScreen() {
           getSourceTitle={getSourceTitle}
           onClose={() => setSourceModalVisible(false)}
         />
-
-        {/* Greeting Modal */}
-        {greetingVisible && (
-          <Animated.View style={[styles.greetingModal, { transform: [{ translateY: greetingSlideAnim }] }]}>
-            <TouchableOpacity 
-              style={styles.greetingCloseButton}
-              onPress={() => {
-                Animated.timing(greetingSlideAnim, {
-                  toValue: 300,
-                  duration: 300,
-                  useNativeDriver: true,
-                }).start(() => setGreetingVisible(false));
-              }}
-            >
-              <Text style={styles.greetingCloseText}>✕</Text>
-            </TouchableOpacity>
-            <View style={styles.greetingBubble}>
-              <View style={styles.greetingContent}>
-                <Text style={styles.greetingText}>{greetingText}</Text>
-              </View>
-            </View>
-          </Animated.View>
-        )}
       </SafeAreaView>
     </View>
   );
@@ -488,49 +442,5 @@ const styles = StyleSheet.create({
   chatContent: {
     padding: 16,
     paddingBottom: 40,
-  },
-  greetingModal: {
-    position: 'absolute',
-    bottom: 150,
-    left: 16,
-    right: 16,
-    paddingVertical: 24,
-    paddingHorizontal: 20,
-  },
-  greetingCloseButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  greetingCloseText: {
-    color: '#9ca3af',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  greetingBubble: {
-    backgroundColor: 'rgba(139, 92, 246, 0.15)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
-    shadowColor: '#8b5cf6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-  },
-  greetingContent: {
-    padding: 16,
-  },
-  greetingText: {
-    color: '#e5e7eb',
-    fontSize: 15,
-    fontWeight: '500',
-    lineHeight: 22,
   },
 });

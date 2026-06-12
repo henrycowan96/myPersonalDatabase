@@ -26,6 +26,7 @@ import {
   Lock,
   Globe,
   Info,
+  Trash2,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { integrationItems } from './constants';
@@ -40,6 +41,7 @@ interface SettingsScreenProps {
   toggleIntegration: (key: string) => void;
   handleLogout: () => void;
   handleClearData: () => void;
+  handleDeleteAccount: () => void;
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
@@ -50,6 +52,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   toggleIntegration,
   handleLogout,
   handleClearData,
+  handleDeleteAccount,
 }) => {
   return (
     <View style={styles.container}>
@@ -84,9 +87,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 <Text style={styles.profileName}>
                   {user?.email?.split('@')[0] || 'User'}
                 </Text>
-                <Text style={styles.profileEmail}>
-                  {user?.email || 'ANONYMOUS'}
-                </Text>
               </View>
             </LinearGradient>
           </View>
@@ -109,13 +109,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     onPress={() => toggleIntegration(key)}
                     disabled={loading[key]}
                     activeOpacity={0.7}
-                    style={styles.settingItem}
+                    style={[
+                      styles.settingItem,
+                      isAppleNotes && styles.appleNotesItem
+                    ]}
                   >
                     <Animated.View style={[styles.settingItemContent, { transform: [{ scale: animatedScale }] }]}>
-                      <View style={styles.settingIconContainer}>
+                      <View style={[styles.settingIconContainer, isAppleNotes && styles.appleNotesIconContainer]}>
                         <LinearGradient
                           colors={isConnected ? [color, `${color}cc`] : ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
-                          style={styles.settingIconGradient}
+                          style={[styles.settingIconGradient, isAppleNotes && styles.appleNotesIconGradient]}
                         >
                           {loading[key] ? (
                             <ActivityIndicator size={20} color={isConnected ? '#fff' : '#64748b'} />
@@ -124,17 +127,24 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                           ) : (
                             <Image 
                               source={image} 
-                              style={styles.settingIcon}
+                              style={[styles.settingIcon, isAppleNotes && styles.appleNotesIcon]}
                               resizeMode="contain" 
                             />
                           )}
                         </LinearGradient>
                       </View>
                       <View style={styles.settingTextContainer}>
-                        <Text style={[styles.settingLabel, { color: isConnected ? '#fff' : '#94a3b8' }]}>
-                          {label}
-                        </Text>
-                        <Text style={styles.settingDescription}>
+                        <View style={styles.labelRow}>
+                          <Text style={[styles.settingLabel, { color: isConnected ? '#fff' : '#94a3b8' }]}>
+                            {label}
+                          </Text>
+                          {isAppleNotes && (
+                            <View style={styles.primaryBadge}>
+                              <Text style={styles.primaryBadgeText}>PRIMARY</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={[styles.settingDescription, isAppleNotes && styles.appleNotesDescription]}>
                           {isConnected ? 'Connected' : 'Not connected'}
                         </Text>
                       </View>
@@ -185,6 +195,28 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   <View style={styles.settingTextContainer}>
                     <Text style={[styles.settingLabel, styles.dangerText]}>Log Out</Text>
                     <Text style={styles.settingDescription}>Sign out of your account</Text>
+                  </View>
+                  <ChevronRight size={20} color="#475569" />
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={handleDeleteAccount} style={styles.settingItem}>
+                <View style={styles.settingItemContent}>
+                  <View style={styles.settingIconContainer}>
+                    <LinearGradient
+                      colors={['rgba(239, 68, 68, 0.2)', 'rgba(239, 68, 68, 0.1)']}
+                      style={styles.settingIconGradient}
+                    >
+                      {loading.deleteAccount ? (
+                        <ActivityIndicator size={20} color="#ef4444" />
+                      ) : (
+                        <Trash2 size={20} color="#ef4444" />
+                      )}
+                    </LinearGradient>
+                  </View>
+                  <View style={styles.settingTextContainer}>
+                    <Text style={[styles.settingLabel, styles.dangerText]}>Delete Account</Text>
+                    <Text style={styles.settingDescription}>Permanently delete your account</Text>
                   </View>
                   <ChevronRight size={20} color="#475569" />
                 </View>
@@ -346,6 +378,48 @@ const styles = StyleSheet.create({
   },
   dangerText: {
     color: '#ef4444',
+  },
+  appleNotesItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  appleNotesIconContainer: {
+    marginRight: 16,
+  },
+  appleNotesIconGradient: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  appleNotesIcon: {
+    width: 28,
+    height: 28,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  primaryBadge: {
+    backgroundColor: 'rgba(147, 51, 234, 0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(147, 51, 234, 0.5)',
+  },
+  primaryBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#a78bfa',
+    letterSpacing: 0.5,
+  },
+  appleNotesDescription: {
+    color: '#a78bfa',
+    fontWeight: '500',
   },
   footer: {
     alignItems: 'center',
