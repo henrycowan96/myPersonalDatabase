@@ -45,9 +45,10 @@ async def fetch_apple_notes_endpoint():
 @router.post("/ingest-apple-notes")
 async def ingest_apple_notes_endpoint(request: CreateUserDatabaseRequest):
     """Fetch and ingest Apple Notes into the database with deduplication"""
+    sync_job_id = None
     try:
         print(f"[APPLE NOTES INGEST] Starting ingestion for user {request.user_id}")
-        
+
         # Get user's Pinecone index
         if not utils.supabase:
             raise HTTPException(status_code=503, detail="Supabase not initialized")
@@ -59,7 +60,7 @@ async def ingest_apple_notes_endpoint(request: CreateUserDatabaseRequest):
 
         pinecone_index_name = user_settings.data[0].get("pinecone_index")
         print(f"[APPLE NOTES INGEST] Using Pinecone index: {pinecone_index_name}")
-        
+
         # Create sync job
         sync_job_id = utils.create_sync_job(request.user_id, 'apple_notes')
         print(f"[APPLE NOTES INGEST] Created sync job: {sync_job_id}")

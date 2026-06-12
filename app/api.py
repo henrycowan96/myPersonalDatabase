@@ -67,7 +67,7 @@ async def get_notes_count(user_id: str):
         return {"count": 0}
     
     try:
-        notes_res = utils.supabase.table("ingested_chunks").select("id", count="exact").eq("user_id", user_id).eq("source_type", "apple_notes").eq("is_deleted", False).execute()
+        notes_res = utils.supabase.table("documents").select("id", count="exact").eq("user_id", user_id).eq("source_type", "apple_notes").eq("is_deleted", False).execute()
         return {"count": notes_res.count or 0}
     except Exception as e:
         print(f"Error fetching notes count: {e}")

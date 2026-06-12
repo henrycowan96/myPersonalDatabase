@@ -90,6 +90,21 @@ class InsightsEngine:
         insights.extend(self._generate_milestone_insights(scored_documents))
         insights.extend(self._generate_trending_insights(scored_documents))
         insights.extend(self._generate_interesting_insights(scored_documents))
+
+        # === NEW: Journaling Recommendations and Self-Discovery ===
+        print("[INSIGHTS] Generating journaling recommendations and self-discovery insights")
+
+        # Generate journaling recommendations
+        journaling_recs = self.llm_analyzer.generate_journaling_recommendations(documents)
+        if journaling_recs:
+            insights.extend(self._generate_journaling_insights(journaling_recs))
+            print(f"[INSIGHTS] Generated {len(journaling_recs)} journaling recommendations")
+
+        # Generate self-discovery insights
+        self_discovery = self.llm_analyzer.generate_self_discovery_insights(documents)
+        if self_discovery:
+            insights.extend(self._generate_self_discovery_insights(self_discovery))
+            print(f"[INSIGHTS] Generated {len(self_discovery)} self-discovery insights")
         
         print(f"[INSIGHTS] Two-phase analysis complete: {len(insights)} total insights from Apple Notes")
         
@@ -511,6 +526,57 @@ class InsightsEngine:
                 )
                 insights.append(insight)
         
+        return insights
+
+    def _generate_journaling_insights(self, journaling_recs: List[Dict]) -> List[Insight]:
+        """Generate insights from journaling recommendations"""
+        insights = []
+
+        for rec in journaling_recs:
+            prompt = rec.get('prompt', '')
+            reasoning = rec.get('reasoning', '')
+            category = rec.get('category', 'general')
+
+            insight = Insight(
+                id=f"journaling_{hash(prompt) % 100000}",
+                category='journaling',
+                title=f"Journaling Prompt: {category.replace('-', ' ').title()}",
+                description=f"{prompt}\n\nWhy this matters: {reasoning}",
+                significance_score=0.85,  # High value for personalized prompts
+                sources=[],
+                detected_at=datetime.now().isoformat(),
+                time_context={'category': category, 'type': 'recommendation'},
+                entities=[],
+                actionable=True
+            )
+            insights.append(insight)
+
+        return insights
+
+    def _generate_self_discovery_insights(self, self_discovery: List[Dict]) -> List[Insight]:
+        """Generate insights from self-discovery analysis"""
+        insights = []
+
+        for discovery in self_discovery:
+            category = discovery.get('category', 'general')
+            insight_text = discovery.get('insight', '')
+            evidence = discovery.get('evidence', '')
+            significance_score = discovery.get('significance_score', 0.6)
+
+            insight = Insight(
+                id=f"discovery_{hash(insight_text) % 100000}",
+                category='self_discovery',
+                title=f"Self-Discovery: {category.replace('-', ' ').title()}",
+                description=f"{insight_text}\n\nEvidence from your notes: {evidence}",
+                significance_score=significance_score * 1.1,  # Boost for self-discovery value
+                sources=[],
+                detected_at=datetime.now().isoformat(),
+                time_context={'category': category, 'type': 'self_discovery'},
+                entities=[],
+                actionable=False
+            )
+            insights.append(insight)
+
         return insights
 
 

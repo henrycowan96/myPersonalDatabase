@@ -152,7 +152,7 @@ async def query_documents(request: QueryRequest):
             # Check if this is the first message in a new session (no conversation history)
             is_first_message = not request.conversation_history or len(request.conversation_history) == 0
             
-            prompt = f"""You are a precise, factual assistant that answers questions about the user based ONLY on the provided context.
+            prompt = f"""You are a helpful, conversational assistant that answers questions about the user based on the provided context.
 
 IMPORTANT: All information in the context below is from the user's personal perspective. When interpreting events, actions, communications, or any data, assume it reflects the user's own experiences, activities, and information. For example:
 - "sent an email" means the user sent it
@@ -161,15 +161,19 @@ IMPORTANT: All information in the context below is from the user's personal pers
 - Any references to "I", "my", or personal activities in the context refer to the user
 
 INSTRUCTIONS:
-- Answer the question using the given context
-- Interpret all context as the user's personal information and experiences
+- ALWAYS provide a response - never say you don't have enough information
+- Use the given context as your primary source, but be conversational and helpful
+- If the context doesn't fully answer the question, provide the best answer you can based on what's available
+- If you're uncertain, acknowledge it but still give your best interpretation
+- Feel free to ask clarifying questions if the context is ambiguous
 - Always refer to the user as "you" or "your" - never as "I" or "my"
-- If the answer is not in the context, state "I don't have enough information to answer this"
-- Be specific and cite relevant details
-- Do not make up or infer information beyond what's provided
-- Keep answers concise and well-structured
-- Use conversation history to understand context, but base factual answers on the provided document context
+- Be conversational and natural, like a thoughtful friend helping them understand their own information
+- Use conversation history to understand context and provide more personalized responses
 - Always consider the persona facts when answering to provide contextually relevant responses
+- If the context seems unrelated to the question, still try to find connections or suggest what might be relevant
+- NEVER offer to add, update, or modify any information in the user's records
+- If the user asks to add new information, explain that they need to write it in their notes app and then reupload their data in settings
+- You cannot directly modify or add to the user's knowledge base - only they can do that through their notes
 {conversation_context}
 
 {persona_block}CONTEXT (from {len(context_parts)} sources):
@@ -180,11 +184,6 @@ QUESTION: {request.question}
 ANSWER:"""
 
             answer = utils.llm.invoke(prompt).content
-            
-            # Add greeting for first message
-            if is_first_message:
-                greeting = f"I've read {notes_count} of your Apple Notes and am ready to discuss them. "
-                answer = greeting + answer
         else:
             if not utils.llm:
                 print(f"[QUERY] LLM not initialized")
@@ -327,7 +326,7 @@ async def query_by_relationships(request: RelationshipQueryRequest):
             # Check if this is the first message in a new session (no conversation history)
             is_first_message = not request.conversation_history or len(request.conversation_history) == 0
             
-            prompt = f"""You are a helpful assistant that answers questions about the user based on the provided context.
+            prompt = f"""You are a helpful, conversational assistant that answers questions about the user based on the provided context.
 
 IMPORTANT: All information in the context below is from the user's personal perspective. When interpreting events, actions, communications, or any data, assume it reflects the user's own experiences, activities, and information. For example:
 - "sent an email" means the user sent it
@@ -335,9 +334,20 @@ IMPORTANT: All information in the context below is from the user's personal pers
 - "purchased Y" means the user made the purchase
 - Any references to "I", "my", or personal activities in the context refer to the user
 
-Use the following pieces of context to answer the question at the end. If you don't know the answer based on the context, just say that you don't know, don't try to make up an answer.
+INSTRUCTIONS:
+- ALWAYS provide a response - never say you don't have enough information
+- Use the given context as your primary source, but be conversational and helpful
+- If the context doesn't fully answer the question, provide the best answer you can based on what's available
+- If you're uncertain, acknowledge it but still give your best interpretation
+- Feel free to ask clarifying questions if the context is ambiguous
 - Always refer to the user as "you" or "your" - never as "I" or "my"
+- Be conversational and natural, like a thoughtful friend helping them understand their own information
+- Use conversation history to understand context and provide more personalized responses
 - Always consider the persona facts when answering to provide contextually relevant responses
+- If the context seems unrelated to the question, still try to find connections or suggest what might be relevant
+- NEVER offer to add, update, or modify any information in the user's records
+- If the user asks to add new information, explain that they need to write it in their notes app and then reupload their data in settings
+- You cannot directly modify or add to the user's knowledge base - only they can do that through their notes
 {conversation_context}
 
 {persona_block}Context: {context}
@@ -347,11 +357,6 @@ Question: {request.question}
 Answer:"""
             
             answer = utils.llm.invoke(prompt).content
-            
-            # Add greeting for first message
-            if is_first_message:
-                greeting = f"I've read {notes_count} of your Apple Notes and am ready to discuss them. "
-                answer = greeting + answer
         elif context_parts:
             answer = f"Found {len(sources)} related documents based on filters: {filters_applied}"
         else:

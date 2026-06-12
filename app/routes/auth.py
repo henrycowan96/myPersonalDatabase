@@ -342,3 +342,56 @@ async def spotify_callback(code: str = None, state: str = None, error: str = Non
     
     except Exception as e:
         return {"service": "spotify", "success": False, "error": str(e)}
+
+
+@router.post("/auth/delete-account")
+async def delete_account(user_id: str):
+    """Delete user account and all associated data including Pinecone index"""
+    if not utils.supabase:
+        raise HTTPException(status_code=503, detail="Supabase not initialized")
+    
+    try:
+        # Get user settings to retrieve Pinecone index name
+        user_settings = utils.supabase.table("user_settings").select("*").eq("user_id", user_id).execute()
+        
+        pinecone_index = None
+        if user_settings.data:
+            pinecone_index = user_settings.data[0].get("pinecone_index")
+        
+        # Delete Pinecone index if it exists
+        if pinecone_index and utils.pinecone_index:
+            try:
+                from pinecone import Pinecone
+                pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+                
+                # Try to delete the user's Pinecone index
+                try:
+                    pc.delete_index(pinecone_index)
+                    print(f"[DELETE ACCOUNT] Deleted Pinecone index: {pinecone_index}")
+                except Exception as pinecone_error:
+                    print(f"[DELETE ACCOUNT] Error deleting Pinecone index: {pinecone_error}")
+                    # Continue with account deletion even if Pinecone deletion fails
+            except Exception as e:
+                print(f"[DELETE ACCOUNT] Error initializing Pinecone for deletion: {e}")
+        
+        # Delete the user from Supabase auth
+        # This will cascade delete all records due to ON DELETE CASCADE
+        try:
+            supabase_auth = utils.supabase.auth.admin
+            supabase_auth.delete_user(user_id)
+            print(f"[DELETE ACCOUNT] Deleted user from Supabase auth: {user_id}")
+        except Exception as auth_error:
+            print(f"[DELETE ACCOUNT] Error deleting user from auth: {auth_error}")
+            raise HTTPException(status_code=500, detail=f"Error deleting user from auth: {str(auth_error)}")
+        
+        return {
+            "success": True,
+            "message": "Account and all associated data deleted successfully",
+            "pinecone_index_deleted": pinecone_index is not None
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[DELETE ACCOUNT] Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

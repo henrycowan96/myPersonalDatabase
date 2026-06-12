@@ -350,3 +350,211 @@ Focus on patterns and themes rather than individual documents. Be comprehensive 
         except Exception as e:
             print(f"[INSIGHTS] Error in batch title analysis: {e}")
             return {}
+
+    def generate_journaling_recommendations(self, documents: List[Dict]) -> List[Dict]:
+        """Generate personalized journaling recommendations based on user's notes"""
+        if not self.llm:
+            return []
+
+        # Extract recent notes and themes
+        recent_notes = []
+        for doc in documents[:20]:  # Focus on recent 20 notes
+            metadata = doc.get('metadata', {})
+            text = metadata.get('text', '')
+            title = metadata.get('note_name', '')
+            created_date = metadata.get('created_date', '')
+
+            if text and len(text) > 50:
+                recent_notes.append({
+                    'title': title,
+                    'text': text[:500],  # Truncate for context
+                    'date': created_date
+                })
+
+        if not recent_notes:
+            return []
+
+        # Create context from recent notes
+        notes_context = "\n\n".join([
+            f"Title: {note['title']}\nDate: {note['date']}\nContent: {note['text']}"
+            for note in recent_notes[:10]
+        ])
+
+        try:
+            prompt = f"""Based on these recent Apple Notes, generate 3-5 personalized journaling recommendations for the user.
+
+Recent Notes:
+{notes_context}
+
+Analyze the notes to identify:
+1. Topics the user has mentioned but hasn't explored deeply
+2. Goals or intentions the user has expressed
+3. Recurring themes or patterns in their writing
+4. Areas where the user seems to be seeking clarity
+5. Experiences or emotions that could benefit from deeper reflection
+
+For each recommendation, provide:
+- A specific journaling prompt or question
+- Why this recommendation is relevant to them (based on their notes)
+- The category (goal-reflection, pattern-exploration, emotion-processing, clarity-seeking, future-planning)
+
+Format your response as JSON:
+{{
+  "recommendations": [
+    {{
+      "prompt": "Specific journaling question or prompt",
+      "reasoning": "Why this is relevant based on their notes",
+      "category": "goal-reflection"
+    }}
+  ]
+}}
+
+Make the prompts personal and specific to what you've learned about them from their notes."""
+
+            message = HumanMessage(content=prompt)
+            response = self.llm.invoke([message])
+            analysis = response.content.strip()
+
+            # Parse response
+            try:
+                # Try to extract JSON from markdown code blocks
+                json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', analysis, re.DOTALL)
+                if json_match:
+                    json_content = json_match.group(1)
+                else:
+                    json_match = re.search(r'\{.*\}', analysis, re.DOTALL)
+                    if json_match:
+                        json_content = json_match.group(0)
+                    else:
+                        return []
+
+                parsed = json.loads(json_content)
+
+                if 'recommendations' not in parsed:
+                    return []
+
+                recommendations = []
+                for rec in parsed['recommendations']:
+                    recommendations.append({
+                        'prompt': rec.get('prompt', ''),
+                        'reasoning': rec.get('reasoning', ''),
+                        'category': rec.get('category', 'general')
+                    })
+
+                return recommendations
+
+            except json.JSONDecodeError as e:
+                print(f"[INSIGHTS] JSON decode error in journaling recommendations: {e}")
+                return []
+
+        except Exception as e:
+            print(f"[INSIGHTS] Error generating journaling recommendations: {e}")
+            return []
+
+    def generate_self_discovery_insights(self, documents: List[Dict]) -> List[Dict]:
+        """Generate deep self-discovery insights about the user"""
+        if not self.llm:
+            return []
+
+        # Extract notes for analysis
+        notes_for_analysis = []
+        for doc in documents[:30]:  # Analyze up to 30 notes
+            metadata = doc.get('metadata', {})
+            text = metadata.get('text', '')
+            title = metadata.get('note_name', '')
+            created_date = metadata.get('created_date', '')
+
+            if text and len(text) > 50:
+                notes_for_analysis.append({
+                    'title': title,
+                    'text': text[:800],  # More context for self-discovery
+                    'date': created_date
+                })
+
+        if not notes_for_analysis:
+            return []
+
+        # Create context
+        notes_context = "\n\n".join([
+            f"Title: {note['title']}\nDate: {note['date']}\nContent: {note['text']}"
+            for note in notes_for_analysis[:15]
+        ])
+
+        try:
+            prompt = f"""Analyze these Apple Notes to generate deep self-discovery insights about the user.
+
+Notes:
+{notes_context}
+
+Look for patterns and insights about:
+1. **Core Values**: What principles or beliefs seem important to them?
+2. **Joy Sources**: What consistently brings them happiness or fulfillment?
+3. **Stress Triggers**: What situations or topics seem to cause stress or anxiety?
+4. **Recurring Conflicts**: What internal conflicts or dilemmas appear repeatedly?
+5. **Growth Areas**: Where are they actively trying to improve or learn?
+6. **Relationship Patterns**: How do they describe their interactions with others?
+7. **Decision-Making**: How do they approach important choices?
+
+For each insight, provide:
+- The insight category (values, joy-sources, stress-triggers, recurring-conflicts, growth-areas, relationship-patterns, decision-making)
+- A clear, specific insight about them
+- Evidence from their notes that supports this insight
+- Significance level (low/medium/high)
+
+Format your response as JSON:
+{{
+  "insights": [
+    {{
+      "category": "values",
+      "insight": "Specific insight about their values",
+      "evidence": "Quote or pattern from their notes",
+      "significance": "high"
+    }}
+  ]
+}}
+
+Be specific and personal. Use their actual words when possible. Focus on insights that would help them understand themselves better."""
+
+            message = HumanMessage(content=prompt)
+            response = self.llm.invoke([message])
+            analysis = response.content.strip()
+
+            # Parse response
+            try:
+                # Try to extract JSON from markdown code blocks
+                json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', analysis, re.DOTALL)
+                if json_match:
+                    json_content = json_match.group(1)
+                else:
+                    json_match = re.search(r'\{.*\}', analysis, re.DOTALL)
+                    if json_match:
+                        json_content = json_match.group(0)
+                    else:
+                        return []
+
+                parsed = json.loads(json_content)
+
+                if 'insights' not in parsed:
+                    return []
+
+                insights = []
+                for insight_data in parsed['insights']:
+                    significance_map = {'low': 0.3, 'medium': 0.6, 'high': 0.9}
+                    significance_score = significance_map.get(insight_data.get('significance', 'medium'), 0.6)
+
+                    insights.append({
+                        'category': insight_data.get('category', 'general'),
+                        'insight': insight_data.get('insight', ''),
+                        'evidence': insight_data.get('evidence', ''),
+                        'significance_score': significance_score
+                    })
+
+                return insights
+
+            except json.JSONDecodeError as e:
+                print(f"[INSIGHTS] JSON decode error in self-discovery insights: {e}")
+                return []
+
+        except Exception as e:
+            print(f"[INSIGHTS] Error generating self-discovery insights: {e}")
+            return []

@@ -103,52 +103,62 @@ async def regenerate_and_save_insights(user_id: str):
         print(f"[INSIGHTS REGEN] Saved {saved_count} insights to database")
         
         # Generate and save LLM thoughts based on new insights
-        from services.llm_service import LLMService
-        llm_service = LLMService()
-        
-        prompts = [
-            {"type": "summary", "title": "Life Summary", "prompt": f"Based on these insights, provide a comprehensive summary. Insights: {insights}"},
-            {"type": "recommendations", "title": "Actionable Recommendations", "prompt": f"Based on these insights, provide 3-5 actionable recommendations. Insights: {insights}"},
-            {"type": "patterns", "title": "Emerging Patterns", "prompt": f"Analyze these insights and identify significant patterns. Insights: {insights}"},
-            {"type": "opportunities", "title": "Growth Opportunities", "prompt": f"What are the biggest opportunities for personal growth? Insights: {insights}"},
-            {"type": "reflection", "title": "Deep Reflection", "prompt": f"Provide a thoughtful reflection on what these insights reveal. Insights: {insights}"},
-        ]
-        
-        thoughts = []
-        for prompt_data in prompts:
-            try:
-                response = await llm_service.generate_response(prompt_data["prompt"])
-                thoughts.append({
-                    'id': f"{prompt_data['type']}_{datetime.now().timestamp()}",
-                    'thought_type': prompt_data["type"],
-                    'title': prompt_data["title"],
-                    'content': response,
-                    'prompt_used': prompt_data["prompt"],
-                    'generated_at': datetime.now().isoformat(),
-                })
-            except Exception as e:
-                print(f"[INSIGHTS REGEN] Error generating thought: {e}")
-                continue
-        
-        # Save thoughts to Supabase
-        thought_count = 0
-        for thought in thoughts:
-            result = utils.supabase.table("llm_thoughts").upsert(
-                {
-                    'user_id': user_id,
-                    'thought_id': thought['id'],
-                    'thought_type': thought['thought_type'],
-                    'title': thought['title'],
-                    'content': thought['content'],
-                    'prompt_used': thought['prompt_used'],
-                    'generated_at': thought['generated_at'],
-                },
-                on_conflict="user_id,thought_id"
-            ).execute()
-            if result.data:
-                thought_count += 1
-        
-        print(f"[INSIGHTS REGEN] Saved {thought_count} thoughts to database")
+        print(f"[INSIGHTS REGEN] Starting LLM thoughts generation...")
+        try:
+            from services.llm_service import LLMService
+            llm_service = LLMService()
+            
+            prompts = [
+                {"type": "summary", "title": "Life Summary", "prompt": f"Based on these insights, provide a comprehensive summary. Insights: {insights}"},
+                {"type": "recommendations", "title": "Actionable Recommendations", "prompt": f"Based on these insights, provide 3-5 actionable recommendations. Insights: {insights}"},
+                {"type": "patterns", "title": "Emerging Patterns", "prompt": f"Analyze these insights and identify significant patterns. Insights: {insights}"},
+                {"type": "opportunities", "title": "Growth Opportunities", "prompt": f"What are the biggest opportunities for personal growth? Insights: {insights}"},
+                {"type": "reflection", "title": "Deep Reflection", "prompt": f"Provide a thoughtful reflection on what these insights reveal. Insights: {insights}"},
+            ]
+            
+            thoughts = []
+            for prompt_data in prompts:
+                try:
+                    print(f"[INSIGHTS REGEN] Generating thought: {prompt_data['type']}")
+                    response = await llm_service.generate_response(prompt_data["prompt"])
+                    thoughts.append({
+                        'id': f"{prompt_data['type']}_{datetime.now().timestamp()}",
+                        'thought_type': prompt_data["type"],
+                        'title': prompt_data["title"],
+                        'content': response,
+                        'prompt_used': prompt_data["prompt"],
+                        'generated_at': datetime.now().isoformat(),
+                    })
+                    print(f"[INSIGHTS REGEN] Successfully generated thought: {prompt_data['type']}")
+                except Exception as e:
+                    print(f"[INSIGHTS REGEN] Error generating thought: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    continue
+            
+            # Save thoughts to Supabase
+            thought_count = 0
+            for thought in thoughts:
+                result = utils.supabase.table("llm_thoughts").upsert(
+                    {
+                        'user_id': user_id,
+                        'thought_id': thought['id'],
+                        'thought_type': thought['thought_type'],
+                        'title': thought['title'],
+                        'content': thought['content'],
+                        'prompt_used': thought['prompt_used'],
+                        'generated_at': thought['generated_at'],
+                    },
+                    on_conflict="user_id,thought_id"
+                ).execute()
+                if result.data:
+                    thought_count += 1
+            
+            print(f"[INSIGHTS REGEN] Saved {thought_count} thoughts to database")
+        except Exception as e:
+            print(f"[INSIGHTS REGEN] Error in LLM thoughts generation: {e}")
+            import traceback
+            traceback.print_exc()
 
         # Promote confirmed candidate facts to real facts
         try:
