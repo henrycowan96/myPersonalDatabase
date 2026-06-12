@@ -81,7 +81,7 @@ Personal Database Mobile/
 │   ├── services/                 # Business logic
 │   ├── processors/               # Data processing
 │   └── api.py                    # FastAPI application
-├── My Personal Database Mobile/ # React Native app
+├── My_Personal_Database_Mobile/ # React Native app
 │   ├── app/                      # Mobile screens
 │   ├── components/               # Reusable components
 │   ├── lib/                      # Utilities and services
